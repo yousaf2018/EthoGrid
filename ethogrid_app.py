@@ -425,7 +425,7 @@ class DetectionProcessor(QThread):
 class VideoPlayer(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(VideoPlayer, self).__init__(parent)
-        self.setWindowTitle("📊 Animal Behavior Analyzer Tool")
+        self.setWindowTitle("📊 EthoGrid")
         
         self.raw_detections = {}
         self.processed_detections = {}
