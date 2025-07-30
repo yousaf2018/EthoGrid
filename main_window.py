@@ -19,7 +19,7 @@ from core.grid_manager import GridManager
 class VideoPlayer(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(VideoPlayer, self).__init__(parent)
-        self.setWindowTitle("📊 EthoGrid")
+        self.setWindowTitle("EthoGrid")
 
         # --- State Management (No changes here) ---
         self.raw_detections = {}

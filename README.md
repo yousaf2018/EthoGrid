@@ -54,9 +54,12 @@
 
 No installation is needed. Simply download and run the application.
 
-1. Navigate to the **[Releases Page](https://github.com/YOUR_USERNAME/EthoGrid/releases)** of this repository.
-2. Download the `EthoGrid.exe` file from the latest release.
+1. Download APP for windows from this **[Link](https://drive.google.com/file/d/1W1YgaLJgyYlqtTRTiLl5NHyVf-mxkm8I/view?usp=sharing)**
 3. Double-click the downloaded file to launch the application.
+4. Download raw video from this **[Link](https://drive.google.com/file/d/1ImicvjG2tSUdRys2nu_XtJ7B9jcZpnaI/view?usp=sharing)** for testing
+5. Download Yolov11 detection csv file from this **[Link](https://drive.google.com/file/d/1nih-USaZ6P_Cn06CqzXZhyNynoPn0WCd/view?usp=sharing)**
+6. Download setting json file from this **[Link](https://drive.google.com/file/d/1nPepLlHvBuyjzYqWehX1lnBLRMe-rEAW/view?usp=sharing)** for selecting grid by defualt on video 
+7. After downloading all required files just load one by one by using buttons on GUI 
 
 ### For Developers
 
