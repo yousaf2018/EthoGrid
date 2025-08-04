@@ -1,12 +1,14 @@
-# 📊 EthoGrid: A Spatial Behavior Analysis Tool
+# EthoGrid: A Spatial Behavior Analysis Tool
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
 
 **EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides an intuitive interface to overlay a customizable grid onto a video, automatically assign animal detections to grid cells (tanks/arenas), and visualize the resulting spatio-temporal data.
-![EthoGrid](/images/android-chrome-512x512.png)
 
+<p align="center">
+  <img src="/images/android-chrome-512x512.png" alt="EthoGrid Logo" width="200">
+</p>
 <!-- ![Tool Overview](images/tool_overview.png)
 *A snapshot of the EthoGrid interface showing a video with an overlaid grid, detections, a behavior legend, and a multi-tank timeline.* -->
 
@@ -55,7 +57,7 @@
 
 No installation is needed. Simply download and run the application.
 
-1. Download APP for windows from this **[Link](https://drive.google.com/file/d/1W1YgaLJgyYlqtTRTiLl5NHyVf-mxkm8I/view?usp=sharing)**
+1. Download APP for windows from this **[Link](https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.3/EthoGrid.exe)**
 3. Double-click the downloaded file to launch the application.
 4. Download raw video from this **[Link](https://drive.google.com/file/d/1ImicvjG2tSUdRys2nu_XtJ7B9jcZpnaI/view?usp=sharing)** for testing
 5. Download Yolov11 detection csv file from this **[Link](https://drive.google.com/file/d/1nih-USaZ6P_Cn06CqzXZhyNynoPn0WCd/view?usp=sharing)**
