@@ -5,7 +5,9 @@
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
 
 **EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides an intuitive interface to overlay a customizable grid onto a video, automatically assign animal detections to grid cells (tanks/arenas), and visualize the resulting spatio-temporal data.
-![EthoGrid](/images/android-chrome-512x512.png)
+<p align="center">
+  <img src="/images/android-chrome-512x512.png" alt="EthoGrid Logo" width="200">
+</p>
 
 <!-- ![Tool Overview](images/tool_overview.png)
 *A snapshot of the EthoGrid interface showing a video with an overlaid grid, detections, a behavior legend, and a multi-tank timeline.* -->
