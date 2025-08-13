@@ -32,7 +32,7 @@ def resource_path(relative_path):
 class VideoPlayer(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(VideoPlayer, self).__init__(parent)
-        self.setWindowTitle("📊 EthoGrid")
+        self.setWindowTitle("EthoGrid")
         
         logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path):
@@ -105,7 +105,7 @@ class VideoPlayer(QtWidgets.QWidget):
         processing_toolbar = QtWidgets.QHBoxLayout();
         logo_label = QtWidgets.QLabel(); logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): logo_label.setPixmap(QtGui.QPixmap(logo_path).scaled(32, 32, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
-        processing_toolbar.addWidget(logo_label)
+        # processing_toolbar.addWidget(logo_label)
         processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn); processing_toolbar.addStretch()
         file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
         main_layout.addLayout(processing_toolbar); main_layout.addLayout(file_toolbar)
