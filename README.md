@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
-[![Deep Learning](https://img.shields.io/badge/AI-YOLOv8-purple.svg)](https://ultralytics.com/)
+[![Deep Learning](https://img.shields.io/badge/AI-YOLOv11-purple.svg)](https://ultralytics.com/)
 
 **EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides a complete end-to-end pipeline, from running AI-based **object detection and segmentation (YOLO)** on raw videos to interactively assigning detections to grid cells (tanks/arenas) and exporting multiple formats of annotated data and videos.
 
@@ -18,18 +18,11 @@
 
 ## Table of Contents
 - [Key Features](#key-features)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Workflow Overview](#workflow-overview)
-- [How to Use EthoGrid: A Step-by-Step Guide](#how-to-use-ethogrid-a-step-by-step-guide)
-  - [Part 1: AI Inference (Video to Data)](#part-1-ai-inference-video-to-data)
-  - [Part 2: Grid Annotation (Data to Insights)](#part-2-grid-annotation-data-to-insights)
-- [Detailed Guide to the Interface](#detailed-guide-to-the-interface)
-  - [Main Toolbars](#main-toolbars)
-  - [Video Player & Visuals](#video-player--visuals)
-  - [Controls Sidebar](#controls-sidebar)
-- [Required Input File Formats](#required-input-file-formats)
+- [Getting Started for Users (No Installation Needed)](#getting-started-for-users-no-installation-needed)
+  - [1. Download the Application](#1-download-the-application)
+  - [2. Download Sample Files](#2-download-sample-files)
+- [How to Use EthoGrid: A Step-by-Step Workflow](#how-to-use-ethogrid-a-step-by-step-workflow)
+- [For Developers](#for-developers)
 - [Output Files](#output-files)
 - [Contributing](#contributing)
 - [License](#license)
@@ -57,134 +50,97 @@
 
 ---
 
-## Getting Started
+## Getting Started for Users (No Installation Needed)
 
-### Prerequisites
-Before you begin, ensure you have Python 3.8+ installed on your system.
+Follow these steps to get up and running in minutes.
 
-### Installation
-If you are a developer or want to run from source, follow these steps:
+### 1. Download the Application
 
-1.  **Clone the repository**
+-   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.4/EthoGrid-APP.zip)**
+
+Simply download the file and double-click to run. There is no installation process.
+
+### 2. Download Sample Files
+
+To test the full functionality of the application immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
+
+-   **Sample YOLOv11 Detection Model (`.pt` file):**
+    -   *This is required for the "YOLO Detection" feature.*
+    -   **[Download Detection Model](https://drive.google.com/file/d/1-vmkZXYQQsS9cgR9E-OZURbYQVzyoSr7/view?usp=sharing)**
+-   **Sample Raw Video (`.mp4` file):**
+    -   *This is the video you will analyze.*
+    -   **[Download Sample Video](https://drive.google.com/file/d/1ImicvjG2tSUdRys2nu_XtJ7B9jcZpnaI/view?usp=sharing)**
+-   **Pre-Generated Detection CSV (for Annotation Testing):**
+    -   *Use this to skip the inference step and go directly to grid annotation.*
+    -   **[Download Detection CSV](https://drive.google.com/file/d/1nih-USaZ6P_Cn06CqzXZhyNynoPn0WCd/view?usp=sharing)**
+-   **Pre-Configured Grid Settings File (for Annotation Testing):**
+    -   *Use this to instantly align the grid with the sample video.*
+    -   **[Download Grid Settings .json](https://drive.google.com/file/d/1nPepLlHvBuyjzYqWehX1lnBLRMe-rEAW/view?usp=sharing)**
+
+*(Note: Replace `your-detection-model-link` with the actual public link to your model file.)*
+
+---
+
+## How to Use EthoGrid: A Step-by-Step Workflow
+
+This workflow demonstrates how to use the sample files you downloaded.
+
+1.  **Run AI Inference (Optional - if you want to generate your own CSV)**
+    -   Launch `EthoGrid.exe`.
+    -   Click **🔮 Run YOLO Detection...**.
+    -   **Add Videos**: Select the `Sample Video.mp4`.
+    -   **YOLO Model File**: Select the `detection_model.pt` you downloaded.
+    -   **Output Directory**: Choose a folder to save the results.
+    -   Click **Start Inference**. This will create a new CSV file.
+
+2.  **Load Video and Detections for Grid Annotation**
+    -   Click **🎬 Load Video** and select the `Sample Video.mp4`.
+    -   Click **📄 Load Detections** and select the **pre-generated `Detection CSV`** you downloaded.
+
+3.  **Align the Grid**
+    -   Click **📂 Load Settings** and select the `grid_settings.json` file.
+    -   The grid will snap into perfect alignment on the video. You can fine-tune it with the sliders or by dragging the red center point.
+
+4.  **Analyze and Export Results**
+    -   Play the video to see the live annotations, timeline, and legend.
+    -   Click **📝 Save w/ Tanks** to save the enriched CSV.
+    -   Click **📈 Save Centroid CSV** to save the wide-format CSV for statistical software.
+    -   Click **📹 Export Video** to create the final annotated video.
+
+---
+
+## For Developers
+
+If you wish to run or modify the tool from source code:
+
+1.  **Prerequisites**: Python 3.8+, Git.
+2.  **Setup**:
     ```bash
+    # Clone the repository
     git clone https://github.com/yousaf2018/EthoGrid.git
     cd EthoGrid
-    ```
 
-2.  **Create and activate a virtual environment**
-    ```bash
+    # Create and activate a virtual environment
     python -m venv venv
-    
-    # On Windows:
-    venv\Scripts\activate
-    
-    # On macOS/Linux:
-    source venv/bin/activate
-    ```
+    source venv/bin/activate  # On macOS/Linux
+    # venv\Scripts\activate    # On Windows
 
-3.  **Install the required libraries**
-    The `requirements.txt` file should contain: `PyQt5`, `opencv-python`, `numpy`, `ultralytics`, and `pandas`.
-    ```bash
+    # Install dependencies
+    # The requirements.txt file should contain: PyQt5, opencv-python, numpy, ultralytics, pandas
     pip install -r requirements.txt
+
+    # Run the application
+    python main.py
     ```
-
-4.  **Run the application**
-    ```bash
-    python main.py 
-    ```
-
----
-
-## Workflow Overview
-
-EthoGrid is designed for a two-stage workflow:
-
-1.  **AI Inference Stage**: Use **"Run YOLO Detection"** or **"Run YOLO Segmentation"** to process your raw videos. This crucial first step generates annotated videos and the necessary CSV data files.
-2.  **Grid Annotation Stage**: Load a video and its corresponding CSV from the first stage. Use the interactive grid to assign tank numbers and then export the final, fully enriched data in multiple formats.
-
----
-
-## How to Use EthoGrid: A Step-by-Step Guide
-
-### Part 1: AI Inference (Video to Data)
-
-This step turns your raw videos into analyzable data. Choose one of the two modes.
-
-1.  Launch the application and click either **🔮 Run YOLO Detection...** or **🎨 Run YOLO Segmentation...**.
-2.  In the dialog window:
-    -   Click **Add Videos...** to select one or more raw video files.
-    -   Click **Browse...** to select your trained YOLO model file (`.pt`).
-    -   Click **Browse...** to choose an output directory for the results.
-    -   Adjust the **Confidence Threshold** (e.g., 0.4) to filter weak detections.
-    -   Use the **Output Options** checkboxes to decide whether to save the annotated video, the CSV data, or both (recommended).
-3.  Click **Start Inference/Segmentation**. The application will process each video, creating your chosen output files (e.g., `{video_name}_detections.csv` or `{video_name}_segmentations.csv`).
-
-### Part 2: Grid Annotation (Data to Insights)
-
-This step adds spatial context (tank numbers) to your data.
-
-1.  **Load Data**:
-    -   Click **🎬 Load Video** to open an original video.
-    -   Click **📄 Load Detections** and select the corresponding CSV file generated in Part 1. The application will automatically detect if it contains segmentation data and display the masks.
-2.  **Configure & Align Grid**:
-    -   In the **Tank Configuration** sidebar, set the **Columns** and **Rows**.
-    -   Use the sliders or click-and-drag the grid on the video for perfect alignment.
-3.  **Save Settings (Optional but Recommended)**:
-    -   Click **💾 Save Settings** to save your grid layout to a `.json` file. This is essential for batch processing.
-4.  **Review and Export**:
-    -   Play the video to see the live annotations.
-    -   **📝 Save w/ Tanks**: Exports the standard CSV with `tank_number` and high-precision `cx`/`cy` columns added.
-    -   **📈 Save Centroid CSV**: Exports the special wide-format CSV for direct use in Prism.
-    -   **📹 Export Video**: A dialog will ask if you want to include overlays (legend/timeline). Choose your preferred format for a clean or fully-detailed video.
-5.  **(Optional) Batch Process Grid Annotation**:
-    -   Click **🚀 Batch Process...**.
-    -   Add videos, select your saved `settings.json`, and choose your output options (including the Centroid CSV). The app will automatically find the matching detection/segmentation CSV for each video and process the entire set.
-
----
-
-## Detailed Guide to the Interface
-
-### Main Toolbars
-
--   **🔮 Run YOLO Detection...**: Opens the dialog for bounding box inference.
--   **🎨 Run YOLO Segmentation...**: Opens the dialog for pixel-mask and polygon inference.
--   **🚀 Batch Process...**: Opens the dialog to apply a saved grid setting to multiple videos.
--   **🎬 Load Video / 📄 Load Detections**: Buttons for the interactive grid alignment workflow.
--   **📝 Save w/ Tanks**: Saves the enriched "long-format" CSV.
--   **📈 Save Centroid CSV**: Saves the analysis-ready "wide-format" CSV (requires `pandas`).
--   **📹 Export Video**: Saves the final annotated video, with or without overlays.
--   **💾 Save Settings / 📂 Load Settings**: Manages `.json` grid configuration files.
-
-### Video Player & Visuals
-
--   **Main Video Display**: Shows the video with a live overlay of the grid and annotations. It automatically displays segmentation masks if they are present in the loaded CSV.
--   **Playback Controls**: Standard media controls for precise navigation.
-
-### Controls Sidebar
-
--   **Behavior Legend**: Lists all behaviors and their assigned colors.
--   **Tank Configuration**: Controls for grid dimensions and transformations.
--   **Tank Selection**: Filter which tanks are visualized.
-
----
-
-## Required Input File Formats
-
--   **For AI Inference**: Standard video files (`.mp4`, `.avi`, `.mov`).
--   **For Grid Annotation**:
-    -   A video file.
-    -   A CSV file. The app will automatically adapt to the columns present:
-        -   **Detection CSV**: Must contain `frame_idx`, `class_name`, `conf`, `x1`, `y1`, `x2`, `y2`, `cx`, `cy`.
-        -   **Segmentation CSV**: Must contain all of the above, plus a `polygon` column.
-    -   Both YOLO modules in EthoGrid generate files in the correct format.
+3.  **Developer Documentation**: For a full breakdown of the code architecture, see the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 ---
 
 ## Output Files
 
 1.  **From AI Inference**:
-    -   `{video_name}_inference.mp4` / `{video_name}_segmentation.mp4`: Videos showing the raw AI results.
-    -   `{video_name}_detections.csv` / `{video_name}_segmentations.csv`: The data files for the next stage.
+    -   `{video_name}_inference.mp4` / `_segmentation.mp4`: Videos showing the raw AI results.
+    -   `{video_name}_detections.csv` / `_segmentations.csv`: The data files for the next stage.
 2.  **From Grid Annotation**:
     -   `{video_name}_with_tanks.csv`: The final "long-format" data file with tank numbers and high-precision coordinates.
     -   `{video_name}_centroids_wide.csv`: The final "wide-format" data file for statistical software.
