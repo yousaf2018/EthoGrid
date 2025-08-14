@@ -3,11 +3,7 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QPointF
 
 class DetectionProcessor(QThread):
-    """
-    Processes raw detections to assign tank numbers based on grid settings.
-    Generates timeline data from the processed detections.
-    """
-    processing_finished = pyqtSignal(dict, dict)  # detections, timeline_segments
+    processing_finished = pyqtSignal(dict, dict)
     error_occurred = pyqtSignal(str)
 
     def __init__(self, detections, grid_transform, grid_settings, video_size, parent=None):
@@ -40,13 +36,19 @@ class DetectionProcessor(QThread):
                 return
 
             tank_data_for_timeline = {}
-            for frame_idx, dets in self.detections.items():
+            for frame_idx, dets in list(self.detections.items()):
                 if not self._is_running: return
                 for det in dets:
-                    cx = (float(det["x1"]) + float(det["x2"])) / 2
-                    cy = (float(det["y1"]) + float(det["y2"])) / 2
+                    # Python's / operator produces a float, so precision is maintained here.
+                    cx = (float(det["x1"]) + float(det["x2"])) / 2.0
+                    cy = (float(det["y1"]) + float(det["y2"])) / 2.0
+                    
+                    det['cx'] = cx
+                    det['cy'] = cy
+                    
                     tank_number = self._get_tank_for_point(cx, cy, w, h, cols, rows, inverse_transform)
                     det['tank_number'] = tank_number
+                    
                     if tank_number is not None:
                         tank_data_for_timeline.setdefault(tank_number, {})[frame_idx] = det["class_name"]
 

@@ -18,3 +18,4 @@ PyQt5_sip
 python-dateutil
 setuptools
 six
+pandas
