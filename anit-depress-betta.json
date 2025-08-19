@@ -1,0 +1,14 @@
+{
+    "grid_settings": {
+        "cols": 5,
+        "rows": 2
+    },
+    "line_thickness": 2,
+    "grid_transform": {
+        "center_x": 0.455,
+        "center_y": 0.5,
+        "angle": 0,
+        "scale_x": 0.88,
+        "scale_y": 0.99
+    }
+}

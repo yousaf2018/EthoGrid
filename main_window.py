@@ -19,7 +19,7 @@ from core.grid_manager import GridManager
 from widgets.batch_dialog import BatchProcessDialog
 from widgets.yolo_inference_dialog import YoloInferenceDialog
 from widgets.yolo_segmentation_dialog import YoloSegmentationDialog
-from core.data_exporter import export_centroid_csv, PANDAS_AVAILABLE
+from core.data_exporter import export_centroid_csv, export_to_excel_sheets, PANDAS_AVAILABLE
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -35,27 +35,16 @@ class VideoPlayer(QtWidgets.QWidget):
         self.setWindowTitle("EthoGrid")
         
         logo_path = resource_path("images/logo.png")
-        if os.path.exists(logo_path):
-            self.setWindowIcon(QtGui.QIcon(logo_path))
-        else:
-            print(f"Warning: Logo not found at '{logo_path}'. Application icon will not be set.")
+        if os.path.exists(logo_path): self.setWindowIcon(QtGui.QIcon(logo_path))
+        else: print(f"Warning: Logo not found at '{logo_path}'.")
 
-        # --- State Management ---
         self.raw_detections, self.processed_detections, self.csv_headers = {}, {}, []
         self.current_frame, self.current_frame_idx, self.total_frames = None, 0, 0
-        self.video_size = (0, 0)
-        self.behavior_colors = {}
+        self.video_size = (0, 0); self.behavior_colors = {}
         self.predefined_colors = [(31,119,180),(255,127,14),(44,160,44),(214,39,40),(148,103,189),(140,86,75),(227,119,194),(127,127,127),(188,189,34),(23,190,207)]
-        self.grid_settings = {'cols': 5, 'rows': 2}
-        self.selected_cells = set()
-        self.line_thickness = 2
-        
-        # --- Mouse Interaction State ---
+        self.grid_settings = {'cols': 5, 'rows': 2}; self.selected_cells = set(); self.line_thickness = 2
         self.dragging_mode, self.last_mouse_pos = None, None
-
-        # --- Component Instances ---
-        self.grid_manager = GridManager()
-        self.video_loader, self.video_saver, self.detection_processor = None, None, None
+        self.grid_manager = GridManager(); self.video_loader, self.video_saver, self.detection_processor = None, None, None
         self.timeline_widget, self.legend_group_box = None, None
         
         self.setup_ui()
@@ -98,7 +87,10 @@ class VideoPlayer(QtWidgets.QWidget):
         self.batch_process_btn = QtWidgets.QPushButton("🚀 Batch Process...")
         self.save_csv_btn, self.export_video_btn = QtWidgets.QPushButton("📝 Save w/ Tanks"), QtWidgets.QPushButton("📹 Export Video"); self.save_csv_btn.setEnabled(False); self.export_video_btn.setEnabled(False)
         self.save_centroid_csv_btn = QtWidgets.QPushButton("📈 Save Centroid CSV"); self.save_centroid_csv_btn.setEnabled(False)
-        if not PANDAS_AVAILABLE: self.save_centroid_csv_btn.setToolTip("Install 'pandas' to enable this feature.")
+        self.save_excel_btn = QtWidgets.QPushButton("📗 Save to Excel"); self.save_excel_btn.setEnabled(False)
+        if not PANDAS_AVAILABLE:
+            self.save_centroid_csv_btn.setToolTip("Install 'pandas' to enable this feature.")
+            self.save_excel_btn.setToolTip("Install 'pandas' and 'openpyxl' to enable this feature.")
         self.save_settings_btn, self.load_settings_btn = QtWidgets.QPushButton("💾 Save Settings"), QtWidgets.QPushButton("📂 Load Settings")
         
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -107,7 +99,7 @@ class VideoPlayer(QtWidgets.QWidget):
         if os.path.exists(logo_path): logo_label.setPixmap(QtGui.QPixmap(logo_path).scaled(32, 32, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         # processing_toolbar.addWidget(logo_label)
         processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn); processing_toolbar.addStretch()
-        file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
+        file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.save_excel_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
         main_layout.addLayout(processing_toolbar); main_layout.addLayout(file_toolbar)
         
         main_h_layout = QtWidgets.QHBoxLayout(); left_pane_layout = QtWidgets.QVBoxLayout(); left_pane_layout.addWidget(self.video_label, stretch=1); left_pane_layout.addWidget(self.status_label)
@@ -130,6 +122,7 @@ class VideoPlayer(QtWidgets.QWidget):
         self.save_csv_btn.clicked.connect(self.save_detections_with_tanks)
         self.export_video_btn.clicked.connect(self.export_video)
         self.save_centroid_csv_btn.clicked.connect(self.save_centroid_csv)
+        self.save_excel_btn.clicked.connect(self.save_to_excel)
         self.save_settings_btn.clicked.connect(self.save_settings)
         self.load_settings_btn.clicked.connect(self.load_settings)
         self.play_btn.clicked.connect(self.start_playback)
@@ -211,11 +204,9 @@ class VideoPlayer(QtWidgets.QWidget):
         if not file_path: return
         try:
             all_detections = [det for frame_dets in self.processed_detections.values() for det in frame_dets]
-            
             new_headers = self.csv_headers[:] if self.csv_headers and all_detections else list(all_detections[0].keys())
             for key in ['tank_number', 'cx', 'cy']:
                 if key not in new_headers: new_headers.append(key)
-
             with open(file_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=new_headers, extrasaction='ignore')
                 writer.writeheader()
@@ -225,10 +216,8 @@ class VideoPlayer(QtWidgets.QWidget):
                         if key in row_to_write and isinstance(row_to_write[key], float):
                             row_to_write[key] = f"{row_to_write[key]:.4f}"
                     writer.writerow(row_to_write)
-            
             QtWidgets.QMessageBox.information(self, "Success", f"Successfully saved to:\n{file_path}")
-        except Exception as e:
-            self.show_error(f"Failed to save file: {str(e)}")
+        except Exception as e: self.show_error(f"Failed to save file: {str(e)}")
 
     def save_centroid_csv(self):
         if not self.processed_detections: self.show_error("Please load and process detections before saving."); return
@@ -241,6 +230,18 @@ class VideoPlayer(QtWidgets.QWidget):
         self.status_label.setText("")
         if error_msg: self.show_error(error_msg)
         else: QtWidgets.QMessageBox.information(self, "Success", f"Centroid CSV saved successfully to:\n{file_path}")
+
+    def save_to_excel(self):
+        if not self.processed_detections: self.show_error("Please load and process detections before exporting to Excel."); return
+        default_name = "output_by_tank.xlsx"
+        if self.video_loader and self.video_loader.video_path: default_name = f"{os.path.splitext(os.path.basename(self.video_loader.video_path))[0]}_by_tank.xlsx"
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save to Excel by Tank", default_name, "Excel Files (*.xlsx)")
+        if not file_path: return
+        self.status_label.setText("Exporting to Excel...")
+        error_msg = export_to_excel_sheets(self.processed_detections, file_path)
+        self.status_label.setText("")
+        if error_msg: self.show_error(error_msg)
+        else: QtWidgets.QMessageBox.information(self, "Success", f"Data saved successfully to:\n{file_path}")
 
     def export_video(self):
         if not self.video_loader or not self.video_loader.video_path or not self.processed_detections: self.show_error("Please load a video and detections first."); return
@@ -260,7 +261,7 @@ class VideoPlayer(QtWidgets.QWidget):
         is_processing = self.detection_processor is not None and self.detection_processor.isRunning()
         self.load_video_btn.setEnabled(not is_processing); self.load_csv_btn.setEnabled(not is_processing); self.batch_process_btn.setEnabled(not is_processing); self.inference_btn.setEnabled(not is_processing); self.segmentation_btn.setEnabled(not is_processing)
         can_save = self.total_frames > 0 and bool(self.processed_detections) and not is_processing
-        self.save_csv_btn.setEnabled(can_save); self.export_video_btn.setEnabled(can_save); self.save_centroid_csv_btn.setEnabled(can_save and PANDAS_AVAILABLE); self.save_settings_btn.setEnabled(True); self.toggle_controls(not is_processing)
+        self.save_csv_btn.setEnabled(can_save); self.export_video_btn.setEnabled(can_save); self.save_centroid_csv_btn.setEnabled(can_save and PANDAS_AVAILABLE); self.save_excel_btn.setEnabled(can_save and PANDAS_AVAILABLE); self.save_settings_btn.setEnabled(True); self.toggle_controls(not is_processing)
 
     def update_display(self):
         if self.current_frame is None: return
@@ -424,4 +425,4 @@ class VideoPlayer(QtWidgets.QWidget):
     def closeEvent(self, event):
         for worker in [self.video_loader, self.video_saver, self.detection_processor]:
             if worker: worker.stop(); worker.wait()
-        event.accept()
+        event.accept() 

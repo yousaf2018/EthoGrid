@@ -20,3 +20,4 @@ setuptools
 six
 pandas
 utlralytics
+openpyxl

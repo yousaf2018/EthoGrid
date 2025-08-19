@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
-[![Deep Learning](https://img.shields.io/badge/AI-YOLOv11-purple.svg)](https://ultralytics.com/)
+[![Deep Learning](https://img.shields.io/badge/AI-YOLOv8-purple.svg)](https://ultralytics.com/)
 
 **EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides a complete end-to-end pipeline, from running AI-based **object detection and segmentation (YOLO)** on raw videos to interactively assigning detections to grid cells (tanks/arenas) and exporting multiple formats of annotated data and videos.
 
@@ -46,6 +46,8 @@
   - **Annotated Videos**: Generate publication-ready videos. Choose to include full overlays (legend, timeline) or export a minimal version with only object annotations.
   - **Enriched CSV (Long Format)**: Export your detection data with new columns for `tank_number`, and high-precision `cx`, `cy` coordinates (formatted to 4 decimal places).
   - **Centroid CSV (Wide Format)**: Export a processed CSV with one row per frame, and `x` and `y` columns for each tank, perfect for direct import into statistical software like GraphPad Prism.
+  - **Excel Export (By Tank)**: Export all data into a single `.xlsx` file, with the detections for each tank neatly organized on its own separate sheet.
+  - **Trajectory Image Export**: Generate a high-quality image plotting the centroid path of animals within their assigned tanks, ideal for visualizing spatial usage.
 - **Settings Persistence**: Save and load complex grid configurations to a JSON file, ensuring reproducibility across multiple experiments.
 
 ---
@@ -58,13 +60,13 @@ Follow these steps to get up and running in minutes.
 
 -   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.4/EthoGrid-APP.zip)**
 
-Simply download the file and double-click to run. There is no installation process.
+Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
 
 ### 2. Download Sample Files
 
 To test the full functionality of the application immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
 
--   **Sample YOLOv11 Detection Model (`.pt` file):**
+-   **Sample YOLOv8 Detection Model (`.pt` file):**
     -   *This is required for the "YOLO Detection" feature.*
     -   **[Download Detection Model](https://drive.google.com/file/d/1-vmkZXYQQsS9cgR9E-OZURbYQVzyoSr7/view?usp=sharing)**
 -   **Sample Raw Video (`.mp4` file):**
@@ -76,8 +78,6 @@ To test the full functionality of the application immediately, download this com
 -   **Pre-Configured Grid Settings File (for Annotation Testing):**
     -   *Use this to instantly align the grid with the sample video.*
     -   **[Download Grid Settings .json](https://drive.google.com/file/d/1nPepLlHvBuyjzYqWehX1lnBLRMe-rEAW/view?usp=sharing)**
-
-*(Note: Replace `your-detection-model-link` with the actual public link to your model file.)*
 
 ---
 
@@ -105,6 +105,7 @@ This workflow demonstrates how to use the sample files you downloaded.
     -   Play the video to see the live annotations, timeline, and legend.
     -   Click **📝 Save w/ Tanks** to save the enriched CSV.
     -   Click **📈 Save Centroid CSV** to save the wide-format CSV for statistical software.
+    -   Click **📗 Save to Excel** to save a multi-sheet Excel file organized by tank.
     -   Click **📹 Export Video** to create the final annotated video.
 
 ---
@@ -126,7 +127,7 @@ If you wish to run or modify the tool from source code:
     # venv\Scripts\activate    # On Windows
 
     # Install dependencies
-    # The requirements.txt file should contain: PyQt5, opencv-python, numpy, ultralytics, pandas
+    # The requirements.txt file should contain: PyQt5, opencv-python, numpy, ultralytics, pandas, openpyxl
     pip install -r requirements.txt
 
     # Run the application
@@ -144,6 +145,8 @@ If you wish to run or modify the tool from source code:
 2.  **From Grid Annotation**:
     -   `{video_name}_with_tanks.csv`: The final "long-format" data file with tank numbers and high-precision coordinates.
     -   `{video_name}_centroids_wide.csv`: The final "wide-format" data file for statistical software.
+    -   `{video_name}_by_tank.xlsx`: An Excel file with data for each tank on a separate sheet.
+    -   `{video_name}_trajectory.png`: A high-quality image plotting the centroid paths within their assigned tanks.
     -   `{video_name}_annotated.mp4`: A clean final video, with or without overlays.
 
 ---

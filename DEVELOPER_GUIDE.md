@@ -11,6 +11,7 @@ Welcome, developer! This document provides a high-level overview of the EthoGrid
   - [3. The `core/` Directory: Central Logic & Utilities](#3-the-core-directory-central-logic--utilities)
     - [`core/grid_manager.py`](#coregrid_managerpy)
     - [`core/data_exporter.py`](#coredata_exporterpy)
+    - [`core/stopwatch.py`](#corestopwatchpy)
   - [4. The `widgets/` Directory: Custom UI Components](#4-the-widgets-directory-custom-ui-components)
     - [`widgets/timeline_widget.py`](#widgetstimeline_widgetpy)
     - [`widgets/yolo_inference_dialog.py`](#widgetsyolo_inference_dialogpy)
@@ -34,36 +35,34 @@ EthoGrid is built on a few key principles:
 
 1.  **Modularity**: Each file and class has a single, clear responsibility. This makes the code easier to read, test, and maintain.
 2.  **Responsive UI**: The user interface must never freeze. All long-running tasks (video I/O, AI inference, data processing) are offloaded to background threads (`QThread`).
-3.  **Decoupling**: The UI (widgets) is decoupled from the business logic (workers). They communicate using Qt's signal and slot mechanism, which prevents them from having to know about each other's internal implementation.
-4.  **Clear Data Flow**: Data flows in a predictable pattern: from user input (files, UI controls) -> to a background worker for processing -> back to the main window, which then updates the UI widgets.
+3.  **Decoupling**: The UI (widgets) is decoupled from the business logic (workers). They communicate using Qt's signal and slot mechanism.
+4.  **Clear Data Flow**: Data flows predictably: from user input -> to a background worker for processing -> back to the main window, which then updates the UI.
 
 ---
 
 ## Project Structure Overview
-
 EthoGrid_App/
-├── main.py # Application entry point.
-├── main_window.py # Main application window. The central coordinator.
+├── main.py
+├── main_window.py
 |
 ├── core/
-│ ├── grid_manager.py # Manages the grid's state (position, rotation, scale).
-│ └── data_exporter.py # Handles specialized CSV export logic (e.g., wide format).
+│ ├── grid_manager.py
+│ ├── data_exporter.py
+│ └── stopwatch.py
 |
 ├── workers/
-│ ├── video_loader.py # Thread for loading video frames for playback.
-│ ├── detection_processor.py # Thread for assigning detections to grid cells.
-│ ├── video_saver.py # Thread for rendering and saving annotated videos.
-│ ├── yolo_processor.py # Thread for running YOLO object detection.
-│ ├── yolo_segmentation_processor.py # Thread for running YOLO segmentation.
-│ └── batch_processor.py # Thread for batch-annotating videos with a grid.
+│ ├── video_loader.py
+│ ├── detection_processor.py
+│ ├── video_saver.py
+│ ├── yolo_processor.py
+│ ├── yolo_segmentation_processor.py
+│ └── batch_processor.py
 |
 └── widgets/
-├── timeline_widget.py # Custom QWidget for the behavior timeline.
-├── yolo_inference_dialog.py# UI dialog for YOLO detection.
-├── yolo_segmentation_dialog.py # UI dialog for YOLO segmentation.
-└── batch_dialog.py # UI dialog for the batch grid annotation feature.
-
-
+├── timeline_widget.py
+├── yolo_inference_dialog.py
+├── yolo_segmentation_dialog.py
+└── batch_dialog.py
 
 
 
@@ -72,104 +71,91 @@ EthoGrid_App/
 ## Detailed File Breakdown
 
 ### 1. `main.py`: The Entry Point
-This is the simplest file. Its only job is to:
-1.  Initialize the `QApplication`.
-2.  Set application-wide attributes like HighDPI scaling.
-3.  Instantiate the `VideoPlayer` class from `main_window.py`.
-4.  Show the main window and start the application's event loop.
+This is the simplest file. Its only job is to initialize and run the `QApplication`.
 
 ### 2. `main_window.py`: The Application Hub
-This is the most important file, acting as the central controller.
-
+The central controller of the application.
 -   **Class**: `VideoPlayer(QtWidgets.QWidget)`
 -   **Responsibilities**:
-    1.  **UI Construction**: The `setup_ui` method builds the entire main window, creating all buttons, sliders, dialogs, and layouts.
-    2.  **State Management**: It holds the application's current state, such as `self.raw_detections`, `self.processed_detections`, `self.current_frame`, etc.
-    3.  **Signal Aggregation**: `setup_connections` connects UI signals (e.g., a button's `clicked` signal) to handler methods (slots) within this class.
-    4.  **Worker Management**: It creates, starts, and connects signals from all the background worker threads. For example, when a user clicks "Export Video," this class instantiates `VideoSaver` and starts it.
-    5.  **Data Display**: Contains `update_display`, the heart of the visualization. It takes the current frame and detection data and uses OpenCV (`cv2`) to draw the grid, bounding boxes, **segmentation masks**, and centroids before displaying the result.
+    -   **UI Construction**: Builds the main window, toolbars, and control sidebar.
+    -   **State Management**: Holds the application's current state (`self.raw_detections`, `self.processed_detections`, etc.).
+    -   **Worker/Dialog Management**: Instantiates and launches all dialogs and worker threads.
+    -   **Data Display**: The `update_display` method uses OpenCV to render the video frame with all annotations (grid, boxes, masks, centroids).
 
 ### 3. The `core/` Directory: Central Logic & Utilities
 
 #### `core/grid_manager.py`
 -   **Class**: `GridManager(QObject)`
--   **Responsibilities**:
-    1.  **State Encapsulation**: Exclusively manages the grid's properties: `center`, `angle`, `scale_x`, and `scale_y`.
-    2.  **Transformation Matrix**: Maintains a `QTransform` matrix, recalculating it whenever a property changes.
-    3.  **Notification**: Emits a `transform_updated` signal whenever the grid changes, telling the `main_window` to redraw.
+-   **Responsibilities**: Encapsulates the state of the interactive grid (`center`, `angle`, `scale`). It maintains the `QTransform` matrix used for coordinate mapping.
 
 #### `core/data_exporter.py`
--   **Function**: `export_centroid_csv(...)`
--   **Responsibilities**:
-    1.  **Data Transformation**: Contains the logic to pivot the "long-format" detection data (one row per detection) into a "wide-format" CSV (one row per frame, with `x` and `y` columns for each tank).
-    2.  **Dependency Handling**: Checks if the `pandas` library is available before attempting to run.
-    3.  **Reusability**: This logic is called by both the single-file export button in `main_window.py` and the batch export process in `batch_processor.py`.
+-   **Functions**: `export_...(...)`
+-   **Responsibilities**: Contains all logic for creating the final output files.
+    -   `export_centroid_csv`: Creates the wide-format CSV for statistical software.
+    -   `export_to_excel_sheets`: Creates the multi-sheet `.xlsx` file.
+    -   `export_trajectory_image`: Generates the final trajectory plot image, correctly handling grid transformations and margins.
+
+#### `core/stopwatch.py`
+-   **Class**: `Stopwatch`
+-   **Responsibilities**: A reusable helper class to calculate elapsed time and Estimated Time Remaining (ETR) for long processes.
 
 ### 4. The `widgets/` Directory: Custom UI Components
 
 #### `widgets/timeline_widget.py`
 -   **Class**: `TimelineWidget(QtWidgets.QWidget)`
--   **Responsibilities**:
-    1.  **Custom Painting**: Uses `QPainter` in its `paintEvent` method to draw the timeline from scratch.
-    2.  **Self-Contained**: Knows nothing about the rest of the application. The `main_window` gives it data via `setData(...)` and `setCurrentFrame(...)`.
+-   **Responsibilities**: A fully custom-painted widget that uses `QPainter` to draw the multi-tank behavior timeline.
 
 #### `widgets/yolo_inference_dialog.py`
 -   **Class**: `YoloInferenceDialog(QtWidgets.QDialog)`
--   **Responsibilities**: Manages the UI and worker thread for the **object detection** workflow. It allows users to select videos, a detection model, and output options, then launches the `YoloProcessor`.
+-   **Responsibilities**: Manages the UI and launches the `YoloProcessor` worker for **object detection**.
 
 #### `widgets/yolo_segmentation_dialog.py`
 -   **Class**: `YoloSegmentationDialog(QtWidgets.QDialog)`
--   **Responsibilities**: Manages the UI and worker thread for the **instance segmentation** workflow. It allows users to select videos, a segmentation model, and output options, then launches the `YoloSegmentationProcessor`.
+-   **Responsibilities**: Manages the UI and launches the `YoloSegmentationProcessor` worker for **instance segmentation**.
 
 #### `widgets/batch_dialog.py`
 -   **Class**: `BatchProcessDialog(QtWidgets.QDialog)`
--   **Responsibilities**: Manages the UI and worker thread for **batch grid annotation**. It allows users to apply a saved `settings.json` file to many videos and their corresponding CSVs at once.
+-   **Responsibilities**: Manages the UI and launches the `BatchProcessor` worker for applying a saved grid configuration to many videos at once.
 
 ### 5. The `workers/` Directory: The Background Powerhouses
 
-All classes here are `QThread` subclasses, designed for long-running tasks.
+All classes here are `QThread` subclasses. Their `run()` method executes on a separate thread.
 
 #### `workers/video_loader.py`
 -   **Class**: `VideoLoader(QThread)`
--   **Purpose**: Handles all video file reading for live playback, emitting frames one by one without freezing the UI.
+-   **Purpose**: Handles video file reading for live playback, emitting frames via signals.
 
 #### `workers/detection_processor.py`
 -   **Class**: `DetectionProcessor(QThread)`
--   **Purpose**: To map raw detections to grid cells based on their **centroid**.
--   **Magic**: Uses the *inverted* grid transformation matrix to convert on-screen coordinates back into the grid's local space to determine the correct tank number.
+-   **Purpose**: Maps raw detections to grid cells based on their centroid using the inverted grid transformation matrix.
 
 #### `workers/video_saver.py`
 -   **Class**: `VideoSaver(QThread)`
--   **Purpose**: To render and save the final annotated video.
--   **Magic**: Its `process_frame` method is highly flexible. It can conditionally draw **segmentation masks** (if available) or bounding boxes, and can also conditionally add or omit the legend and timeline overlays based on user choices.
+-   **Purpose**: Renders and saves the final annotated video. It can conditionally draw masks or boxes, and include or omit overlays.
 
 #### `workers/yolo_processor.py`
 -   **Class**: `YoloProcessor(QThread)`
--   **Purpose**: To run YOLO **object detection** on videos.
--   **Magic**: Loops through videos, passes each frame to `model.predict()`, and saves the results. It calculates high-precision float coordinates for bounding boxes and centroids and formats them to 4 decimal places for the output CSV.
+-   **Purpose**: To run YOLO **object detection**. It performs a minor inset on bounding boxes to improve centroid accuracy before saving high-precision CSV data.
 
 #### `workers/yolo_segmentation_processor.py`
 -   **Class**: `YoloSegmentationProcessor(QThread)`
--   **Purpose**: To run YOLO **instance segmentation** on videos.
--   **Magic**: Similar to the detection processor, but it processes `results.masks`. It calculates centroids from the mask's geometric moments for higher accuracy and converts the pixel masks into polygon coordinate strings for the output CSV.
+-   **Purpose**: To run YOLO **instance segmentation**. It calculates centroids from mask moments and saves polygon data to the CSV.
 
 #### `workers/batch_processor.py`
 -   **Class**: `BatchProcessor(QThread)`
--   **Purpose**: To apply a grid configuration to a batch of videos.
--   **Magic**: Orchestrates a non-interactive workflow. It loads detections, applies the grid logic to assign tank numbers, and then calls the appropriate export functions (including the new `export_centroid_csv`) based on user-selected options in the dialog.
+-   **Purpose**: To orchestrate a non-interactive grid annotation workflow. It loads data, applies grid logic, and calls the relevant functions from `data_exporter.py`.
 
 ---
 
 ## Data Flow and Signal/Slot Mechanism
 
-Understanding the signal/slot mechanism is key to understanding EthoGrid
-**Example Flow: Loading a Video**
-1.  **User**: Clicks the "Load Video" button.
-2.  **`main_window.py`**: The `load_video` slot is triggered. It creates a `VideoLoader` instance and `.start()`s it.
-3.  **`video_loader.py`**: The `run()` method opens the video file. On success, it `emit`s the `video_loaded` signal with the video's dimensions and FPS.
-4.  **`main_window.py`**: The `on_video_loaded` slot receives this signal. It updates the UI (e.g., sets the slider range) and tells the `VideoLoader` to seek to the first frame.
-5.  **`video_loader.py`**: It reads frame 0 and `emit`s the `frame_loaded` signal with the frame data.
-6.  **`main_window.py`**: The `on_frame_loaded` slot receives this. It calls `update_display`, which draws the frame and annotations on the screen.
+The application relies heavily on Qt's signal and slot mechanism for communication between threads.
+
+**Example Flow: Batch Processing**
+1.  **User**: Fills out the `BatchProcessDialog` and clicks "Start".
+2.  **`batch_dialog.py`**: The `start_processing` slot creates a `BatchProcessor` instance, moves it to a `QThread`, connects signals (`overall_progress`, `file_progress`, `time_updated`, etc.) to its own update slots, and starts the thread.
+3.  **`batch_processor.py`**: The `run()` method starts its main loop. For each video, it `emit`s an `overall_progress` signal. Inside the video processing loop, it continuously `emit`s `file_progress` and `time_updated` signals.
+4.  **`batch_dialog.py`**: The dialog's slots (`update_file_progress`, `update_time_labels`) receive these signals and update the GUI elements (progress bars and labels) in real-time, keeping the user informed without freezing the UI.
 
 ---
 
@@ -178,7 +164,7 @@ Understanding the signal/slot mechanism is key to understanding EthoGrid
 Let's say you want to add a feature to export a summary report (e.g., total time spent on each behavior per tank).
 
 1.  **Add a UI Element**: In `main_window.py`'s `setup_ui`, add a `self.export_report_btn = QPushButton("Export Report")`.
-2.  **Create a Utility Function**: Since this is a data-only task, you could add a new function to `core/data_exporter.py` called `export_summary_report(...)`. This function would take `processed_detections` and `fps` as input, calculate the statistics using `pandas`, and save them to a CSV.
+2.  **Create a Utility Function**: In `core/data_exporter.py`, add a new function `export_summary_report(...)`. This function would take `processed_detections` and `fps` as input, calculate the statistics using `pandas`, and save them to a CSV.
 3.  **Connect in Main Window**: In `main_window.py`, create a new slot `export_report`. In `setup_connections`, connect the button's `clicked` signal to this slot.
 4.  **Implement the Slot**: The `export_report` method would:
     -   Open a file save dialog.
