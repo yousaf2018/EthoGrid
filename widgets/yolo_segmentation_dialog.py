@@ -21,7 +21,11 @@ class YoloSegmentationDialog(QtWidgets.QDialog):
         self.start_btn = QtWidgets.QPushButton("Start Segmentation"); self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.overall_progress_bar = QtWidgets.QProgressBar(); self.overall_progress_label = QtWidgets.QLabel("Waiting to start...")
         self.file_progress_bar = QtWidgets.QProgressBar(); self.file_progress_label = QtWidgets.QLabel("Frame: 0 / 0")
-        self.elapsed_time_label = QtWidgets.QLabel("Elapsed: 00:00:00"); self.etr_label = QtWidgets.QLabel("ETR: --:--:--"); self.speed_label = QtWidgets.QLabel("Speed: 0.00 FPS")
+        
+        self.elapsed_time_label = QtWidgets.QLabel("Elapsed: 00:00:00")
+        self.etr_label = QtWidgets.QLabel("ETR: --:--:--")
+        self.speed_label = QtWidgets.QLabel("Speed: 0.00 FPS")
+        
         self.log_text_edit = QtWidgets.QTextEdit(); self.log_text_edit.setReadOnly(True)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -76,7 +80,8 @@ class YoloSegmentationDialog(QtWidgets.QDialog):
         if self.yolo_worker and self.yolo_worker.is_running: QtWidgets.QMessageBox.information(self, "Finished", "YOLO segmentation has completed.")
     def update_overall_progress(self, current_num, total, filename):
         self.overall_progress_bar.setValue(int(current_num * 100 / total)); self.overall_progress_label.setText(f"Processing file {current_num} of {total}: {filename}")
-        self.file_progress_bar.setValue(0); self.file_progress_label.setText("Frame: 0 / 0"); self.elapsed_time_label.setText("Elapsed: 00:00:00"); self.etr_label.setText("ETR: --:--:--"); self.speed_label.setText("Speed: 0.00 FPS")
+        self.file_progress_bar.setValue(0); self.file_progress_label.setText("Frame: 0 / 0"); self.elapsed_time_label.setText("Elapsed: 00:00:00"); self.etr_label.setText("ETR: --:--:--")
+        self.speed_label.setText("Speed: 0.00 FPS")
     def update_file_progress(self, percentage, current_frame, total_frames):
         self.file_progress_bar.setValue(percentage); self.file_progress_label.setText(f"Frame: {current_frame} / {total_frames}")
     def update_time_labels(self, elapsed, etr):

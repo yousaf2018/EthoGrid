@@ -18,9 +18,10 @@ class BatchProcessor(QThread):
     time_updated = pyqtSignal(str, str)
     speed_updated = pyqtSignal(float)
 
-    def __init__(self, video_files, settings_file, output_dir, save_video, save_csv, save_centroid_csv, save_excel, save_trajectory_img, time_gap_seconds, draw_overlays, parent=None):
+    def __init__(self, video_files, settings_file, output_dir, csv_dir, save_video, save_csv, save_centroid_csv, save_excel, save_trajectory_img, time_gap_seconds, draw_overlays, parent=None):
         super().__init__(parent)
         self.video_files = video_files; self.settings_file = settings_file; self.output_dir = output_dir
+        self.csv_dir = csv_dir # Store new CSV directory path
         self.save_video = save_video; self.save_csv = save_csv; self.save_centroid_csv = save_centroid_csv; self.save_excel = save_excel
         self.save_trajectory_img = save_trajectory_img; self.time_gap_seconds = time_gap_seconds
         self.draw_overlays = draw_overlays; self.is_running = True
@@ -40,17 +41,29 @@ class BatchProcessor(QThread):
             grid_settings = settings_data['grid_settings']; transform_settings = settings_data['grid_transform']
         except Exception as e: self.log_message.emit(f"[ERROR] Failed to load settings file: {e}"); return
 
+        file_stopwatch = Stopwatch()
         for idx, video_path in enumerate(self.video_files):
             if not self.is_running: break
-            video_filename = os.path.basename(video_path); self.overall_progress.emit(idx + 1, len(self.video_files), video_filename); self.file_progress.emit(0, 0, 0); self.time_updated.emit("00:00:00", "--:--:--"); self.speed_updated.emit(0.0)
-            base_name = os.path.splitext(video_filename)[0]; csv_path = os.path.join(os.path.dirname(video_path), base_name + ".csv")
+            video_filename = os.path.basename(video_path); self.overall_progress.emit(idx + 1, len(self.video_files), video_filename); self.file_progress.emit(0, 0, 0); self.time_updated.emit("00:00:00", "--:--:--")
+            self.speed_updated.emit(0.0)
+            
+            # ### MODIFIED CSV PATH LOGIC ###
+            base_name = os.path.splitext(video_filename)[0]
+            # Use the specified CSV directory if provided, otherwise use the video's directory
+            search_dir = self.csv_dir if self.csv_dir and os.path.isdir(self.csv_dir) else os.path.dirname(video_path)
+            
+            csv_path = os.path.join(search_dir, base_name + ".csv")
             if not os.path.exists(csv_path):
-                csv_path = os.path.join(os.path.dirname(video_path), base_name + "_detections.csv")
-                if not os.path.exists(csv_path): csv_path = os.path.join(os.path.dirname(video_path), base_name + "_segmentations.csv")
-                if not os.path.exists(csv_path): self.log_message.emit(f"[WARNING] Skipping '{video_filename}': Matching CSV file not found."); continue
+                csv_path = os.path.join(search_dir, base_name + "_detections.csv")
+                if not os.path.exists(csv_path):
+                    csv_path = os.path.join(search_dir, base_name + "_segmentations.csv")
+                    if not os.path.exists(csv_path):
+                        self.log_message.emit(f"[WARNING] Skipping '{video_filename}': Matching CSV file not found in '{search_dir}'.")
+                        continue
             
             self.log_message.emit(f"Found matching detection file: {os.path.basename(csv_path)}")
             try:
+                # The rest of the run method is identical to the previous version
                 detections, csv_headers = {}, []
                 with open(csv_path, newline="", encoding='utf-8') as f:
                     reader = csv.DictReader(f); csv_headers = reader.fieldnames[:]
@@ -95,8 +108,6 @@ class BatchProcessor(QThread):
                     output_img_path = os.path.join(self.output_dir, f"{base_name}_trajectory.png"); self.log_message.emit(f"Saving Trajectory Image to: {os.path.basename(output_img_path)}")
                     error_msg = export_trajectory_image(detections, grid_settings, video_size, final_transform, output_img_path, self.time_gap_seconds, video_fps)
                     if error_msg: self.log_message.emit(f"[ERROR] Trajectory image export failed: {error_msg}")
-                
-                file_stopwatch = Stopwatch()
                 if self.save_video:
                     output_video_path = os.path.join(self.output_dir, f"{base_name}_annotated.mp4"); self.log_message.emit(f"Exporting annotated video to: {os.path.basename(output_video_path)}")
                     all_behaviors = sorted(list(set(det['class_name'] for dets in detections.values() for det in dets))); predefined_colors = [(31,119,180),(255,127,14),(44,160,44),(214,39,40),(148,103,189),(140,86,75),(227,119,194),(127,127,127),(188,189,34),(23,190,207)]; behavior_colors = {name: predefined_colors[i % len(predefined_colors)] for i, name in enumerate(all_behaviors)}
