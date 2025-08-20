@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
-[![Deep Learning](https://img.shields.io/badge/AI-YOLOv8-purple.svg)](https://ultralytics.com/)
+[![Deep Learning](https://img.shields.io/badge/AI-YOLOv11-purple.svg)](https://ultralytics.com/)
 
 **EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides a complete end-to-end pipeline, from running AI-based **object detection and segmentation (YOLO)** on raw videos to interactively assigning detections to grid cells (tanks/arenas) and exporting multiple formats of annotated data and videos.
 
@@ -164,5 +164,6 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 ---
 
 ## License
+
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
