@@ -58,7 +58,7 @@ Follow these steps to get up and running in minutes.
 
 ### 1. Download the Application
 
--   **[Download EthoGrid.exe for Windows]([https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.4/EthoGrid-APP.zip](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid-APP.exe)**
+-   **[Download EthoGrid.exe for Windows]([Download Detection EthoGrid APP](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid-APP.exe)**
 
 Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
 
