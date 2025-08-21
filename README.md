@@ -58,7 +58,7 @@ Follow these steps to get up and running in minutes.
 
 ### 1. Download the Application
 
--   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.4/EthoGrid-APP.zip)**
+-   **[Download EthoGrid.exe for Windows]([https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.4/EthoGrid-APP.zip](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid-APP.exe)**
 
 Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
 
@@ -66,7 +66,7 @@ Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run
 
 To test the full functionality of the application immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
 
--   **Sample YOLOv8 Detection Model (`.pt` file):**
+-   **Sample YOLOv11 Detection Model (`.pt` file):**
     -   *This is required for the "YOLO Detection" feature.*
     -   **[Download Detection Model](https://drive.google.com/file/d/1-vmkZXYQQsS9cgR9E-OZURbYQVzyoSr7/view?usp=sharing)**
 -   **Sample Raw Video (`.mp4` file):**
@@ -167,3 +167,4 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
