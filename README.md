@@ -58,7 +58,7 @@ Follow these steps to get up and running in minutes.
 
 ### 1. Download the Application
 
--   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid-APP.exe)**
+-   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid.zip)**
 
 Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
 
@@ -167,5 +167,6 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
