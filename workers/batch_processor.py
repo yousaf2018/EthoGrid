@@ -18,10 +18,11 @@ class BatchProcessor(QThread):
     time_updated = pyqtSignal(str, str)
     speed_updated = pyqtSignal(float)
 
-    def __init__(self, video_files, settings_file, output_dir, csv_dir, save_video, save_csv, save_centroid_csv, save_excel, save_trajectory_img, time_gap_seconds, draw_overlays, parent=None):
+    def __init__(self, video_files, settings_file, output_dir, csv_dir, max_animals_per_tank, save_video, save_csv, save_centroid_csv, save_excel, save_trajectory_img, time_gap_seconds, draw_overlays, parent=None):
         super().__init__(parent)
         self.video_files = video_files; self.settings_file = settings_file; self.output_dir = output_dir
-        self.csv_dir = csv_dir # Store new CSV directory path
+        self.csv_dir = csv_dir
+        self.max_animals_per_tank = max_animals_per_tank
         self.save_video = save_video; self.save_csv = save_csv; self.save_centroid_csv = save_centroid_csv; self.save_excel = save_excel
         self.save_trajectory_img = save_trajectory_img; self.time_gap_seconds = time_gap_seconds
         self.draw_overlays = draw_overlays; self.is_running = True
@@ -46,28 +47,19 @@ class BatchProcessor(QThread):
             if not self.is_running: break
             video_filename = os.path.basename(video_path); self.overall_progress.emit(idx + 1, len(self.video_files), video_filename); self.file_progress.emit(0, 0, 0); self.time_updated.emit("00:00:00", "--:--:--")
             self.speed_updated.emit(0.0)
-            
-            # ### MODIFIED CSV PATH LOGIC ###
-            base_name = os.path.splitext(video_filename)[0]
-            # Use the specified CSV directory if provided, otherwise use the video's directory
-            search_dir = self.csv_dir if self.csv_dir and os.path.isdir(self.csv_dir) else os.path.dirname(video_path)
-            
+            base_name = os.path.splitext(video_filename)[0]; search_dir = self.csv_dir if self.csv_dir and os.path.isdir(self.csv_dir) else os.path.dirname(video_path)
             csv_path = os.path.join(search_dir, base_name + ".csv")
             if not os.path.exists(csv_path):
                 csv_path = os.path.join(search_dir, base_name + "_detections.csv")
-                if not os.path.exists(csv_path):
-                    csv_path = os.path.join(search_dir, base_name + "_segmentations.csv")
-                    if not os.path.exists(csv_path):
-                        self.log_message.emit(f"[WARNING] Skipping '{video_filename}': Matching CSV file not found in '{search_dir}'.")
-                        continue
+                if not os.path.exists(csv_path): csv_path = os.path.join(search_dir, base_name + "_segmentations.csv")
+                if not os.path.exists(csv_path): self.log_message.emit(f"[WARNING] Skipping '{video_filename}': Matching CSV file not found in '{search_dir}'."); continue
             
             self.log_message.emit(f"Found matching detection file: {os.path.basename(csv_path)}")
             try:
-                # The rest of the run method is identical to the previous version
                 detections, csv_headers = {}, []
                 with open(csv_path, newline="", encoding='utf-8') as f:
                     reader = csv.DictReader(f); csv_headers = reader.fieldnames[:]
-                    coord_cols = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy']
+                    coord_cols = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'conf']
                     for row in reader:
                         frame_idx = int(float(row["frame_idx"]))
                         for col in coord_cols:
@@ -82,10 +74,23 @@ class BatchProcessor(QThread):
                 video_w, video_h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)); video_fps, total_frames = cap.get(cv2.CAP_PROP_FPS) or 30.0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)); video_size = (video_w, video_h); cap.release()
                 final_transform = QTransform(); final_transform.translate(video_w * transform_settings['center_x'], video_h * transform_settings['center_y']); final_transform.rotate(transform_settings['angle']); final_transform.scale(transform_settings['scale_x'], transform_settings['scale_y']); final_transform.translate(-video_w / 2, -video_h / 2)
                 inverse_transform, _ = final_transform.inverted()
+                
                 for dets in detections.values():
                     for det in dets:
                         if 'cx' not in det or det['cx'] is None: det['cx'], det['cy'] = (det["x1"] + det["x2"]) / 2.0, (det["y1"] + det["y2"]) / 2.0
                         det['tank_number'] = self._get_tank_for_point(det['cx'], det['cy'], video_w, video_h, grid_settings['cols'], grid_settings['rows'], inverse_transform)
+
+                self.log_message.emit(f"Filtering to max {self.max_animals_per_tank} animal(s) per tank by confidence...")
+                filtered_detections = defaultdict(list)
+                for frame_idx, dets_in_frame in detections.items():
+                    dets_by_tank = defaultdict(list)
+                    for det in dets_in_frame:
+                        if det.get('tank_number') is not None: dets_by_tank[det['tank_number']].append(det)
+                    for tank_num, dets_in_tank in dets_by_tank.items():
+                        dets_in_tank.sort(key=lambda d: d.get('conf', 0.0), reverse=True)
+                        filtered_detections[frame_idx].extend(dets_in_tank[:self.max_animals_per_tank])
+                detections = filtered_detections; self.log_message.emit("Filtering complete.")
+
                 if self.save_csv:
                     output_csv_path = os.path.join(self.output_dir, f"{base_name}_with_tanks.csv"); self.log_message.emit(f"Saving enriched CSV to: {os.path.basename(output_csv_path)}")
                     all_processed_detections = [det for frame_dets in detections.values() for det in frame_dets]; new_headers = csv_headers[:]; new_headers.extend(k for k in ['tank_number', 'cx', 'cy'] if k not in new_headers)

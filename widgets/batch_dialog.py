@@ -8,45 +8,56 @@ from workers.batch_processor import BatchProcessor
 class BatchProcessDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Batch Processing (Grid Annotation)"); self.setMinimumSize(700, 620)
+        self.setWindowTitle("Batch Processing (Grid Annotation)")
+        self.setMinimumSize(700, 650)
         self.video_files, self.batch_thread, self.batch_worker = [], None, None
         
+        # Apply a specific style for better widget spacing
+        self.setStyleSheet("""
+            QDoubleSpinBox { padding: 4px; min-height: 20px; }
+            QSpinBox { padding: 4px; min-height: 20px; }
+        """)
+        
+        # Central widget that will be placed inside the scroll area
+        main_options_widget = QtWidgets.QWidget()
+        form_layout = QtWidgets.QGridLayout(main_options_widget)
+
+        # --- UI Widgets ---
         self.video_list_widget = QtWidgets.QListWidget()
         self.settings_line_edit = QtWidgets.QLineEdit(); self.settings_line_edit.setPlaceholderText("Click 'Browse' to select a settings.json file")
         self.csv_dir_line_edit = QtWidgets.QLineEdit(); self.csv_dir_line_edit.setPlaceholderText("(Optional) Select a folder containing all your CSV files")
         self.output_dir_line_edit = QtWidgets.QLineEdit(); self.output_dir_line_edit.setPlaceholderText("Click 'Browse' to select an output folder")
         self.add_videos_btn = QtWidgets.QPushButton("Add Videos..."); self.browse_settings_btn = QtWidgets.QPushButton("Browse..."); self.browse_output_btn = QtWidgets.QPushButton("Browse..."); self.browse_csv_dir_btn = QtWidgets.QPushButton("Browse...")
         
+        self.max_animals_spinbox = QtWidgets.QSpinBox()
+        self.max_animals_spinbox.setToolTip("Enforce a maximum number of animals per tank. Detections with the highest confidence will be kept.")
+        self.max_animals_spinbox.setRange(1, 10); self.max_animals_spinbox.setValue(1)
+
         self.save_video_checkbox = QtWidgets.QCheckBox("Save Annotated Video"); self.save_video_checkbox.setChecked(True)
         self.show_overlays_checkbox = QtWidgets.QCheckBox("Show Overlays (Legend/Timeline)"); self.show_overlays_checkbox.setChecked(True)
         self.save_csv_checkbox = QtWidgets.QCheckBox("Save Enriched CSV (Long Format)"); self.save_csv_checkbox.setChecked(True)
         self.save_centroid_csv_checkbox = QtWidgets.QCheckBox("Save Centroid CSV (Wide Format)"); self.save_centroid_csv_checkbox.setChecked(True)
         self.save_excel_checkbox = QtWidgets.QCheckBox("Save to Excel (by Tank)"); self.save_excel_checkbox.setChecked(True)
         self.save_trajectory_img_checkbox = QtWidgets.QCheckBox("Save Trajectory Image"); self.save_trajectory_img_checkbox.setChecked(True)
-
-        self.time_gap_spinbox = QtWidgets.QDoubleSpinBox()
-        self.time_gap_spinbox.setToolTip("Max time gap in seconds. Trajectory lines will break if the time between points is greater than this.")
-        self.time_gap_spinbox.setRange(1, 99999.0); self.time_gap_spinbox.setValue(1.0); self.time_gap_spinbox.setSingleStep(0.1)
-        self.time_gap_spinbox.setMinimumWidth(80)
-        self.time_gap_spinbox.setFixedHeight(20) # Set a fixed height for the input field
+        self.time_gap_spinbox = QtWidgets.QDoubleSpinBox(); self.time_gap_spinbox.setToolTip("Max time gap in seconds for trajectories."); self.time_gap_spinbox.setRange(0.1, 99999.0); self.time_gap_spinbox.setValue(1.0); self.time_gap_spinbox.setSingleStep(0.1)
 
         self.start_btn = QtWidgets.QPushButton("Start Processing"); self.cancel_btn = QtWidgets.QPushButton("Cancel")
         self.overall_progress_bar = QtWidgets.QProgressBar(); self.overall_progress_label = QtWidgets.QLabel("Waiting to start...")
         self.file_progress_bar = QtWidgets.QProgressBar(); self.file_progress_label = QtWidgets.QLabel("Frame: 0 / 0")
-        
-        self.elapsed_time_label = QtWidgets.QLabel("Elapsed: 00:00:00")
-        self.etr_label = QtWidgets.QLabel("ETR: --:--:--")
-        self.speed_label = QtWidgets.QLabel("Speed: 0.00 FPS")
-        
+        self.elapsed_time_label = QtWidgets.QLabel("Elapsed: 00:00:00"); self.etr_label = QtWidgets.QLabel("ETR: --:--:--"); self.speed_label = QtWidgets.QLabel("Speed: 0.00 FPS")
         self.log_text_edit = QtWidgets.QTextEdit(); self.log_text_edit.setReadOnly(True)
 
-        layout = QtWidgets.QVBoxLayout(self)
-        form_layout = QtWidgets.QGridLayout()
+        # --- Populate the Form Layout ---
         form_layout.addWidget(QtWidgets.QLabel("Video Files (must have matching .csv):"), 0, 0); form_layout.addWidget(self.video_list_widget, 1, 0, 1, 2); form_layout.addWidget(self.add_videos_btn, 1, 2)
         form_layout.addWidget(QtWidgets.QLabel("Grid Settings File (.json):"), 2, 0); form_layout.addWidget(self.settings_line_edit, 3, 0); form_layout.addWidget(self.browse_settings_btn, 3, 1)
         form_layout.addWidget(QtWidgets.QLabel("CSV Detections Folder (Optional):"), 4, 0); form_layout.addWidget(self.csv_dir_line_edit, 5, 0); form_layout.addWidget(self.browse_csv_dir_btn, 5, 1)
         form_layout.addWidget(QtWidgets.QLabel("Output Directory:"), 6, 0); form_layout.addWidget(self.output_dir_line_edit, 7, 0); form_layout.addWidget(self.browse_output_btn, 7, 1)
         
+        processing_options_group = QtWidgets.QGroupBox("Processing Options")
+        processing_layout = QtWidgets.QHBoxLayout(processing_options_group)
+        processing_layout.addWidget(QtWidgets.QLabel("Max Animals per Tank:")); processing_layout.addWidget(self.max_animals_spinbox); processing_layout.addStretch()
+        form_layout.addWidget(processing_options_group, 8, 0, 1, 3)
+
         output_options_group = QtWidgets.QGroupBox("Output Options")
         output_options_layout = QtWidgets.QVBoxLayout(output_options_group)
         output_options_layout.addWidget(self.save_video_checkbox); output_options_layout.addWidget(self.show_overlays_checkbox)
@@ -54,15 +65,24 @@ class BatchProcessDialog(QtWidgets.QDialog):
         output_options_layout.addWidget(self.save_excel_checkbox)
         traj_layout = QtWidgets.QHBoxLayout(); traj_layout.addWidget(self.save_trajectory_img_checkbox); traj_layout.addStretch(); traj_layout.addWidget(QtWidgets.QLabel("Max Time Gap (s):")); traj_layout.addWidget(self.time_gap_spinbox)
         output_options_layout.addLayout(traj_layout)
-        form_layout.addWidget(output_options_group, 8, 0, 1, 2); layout.addLayout(form_layout)
+        form_layout.addWidget(output_options_group, 9, 0, 1, 3)
+        
+        # --- Create Scroll Area and Main Dialog Layout ---
+        scroll_area = QtWidgets.QScrollArea(); scroll_area.setWidgetResizable(True); scroll_area.setWidget(main_options_widget)
+        main_dialog_layout = QtWidgets.QVBoxLayout(self)
+        main_dialog_layout.addWidget(scroll_area)
         
         progress_group = QtWidgets.QGroupBox("Progress"); progress_layout = QtWidgets.QVBoxLayout(progress_group)
         progress_layout.addWidget(self.overall_progress_label); progress_layout.addWidget(self.overall_progress_bar)
         file_progress_layout = QtWidgets.QHBoxLayout(); file_progress_layout.addWidget(QtWidgets.QLabel("Current File Progress:")); file_progress_layout.addWidget(self.file_progress_label); file_progress_layout.addStretch(); file_progress_layout.addWidget(self.speed_label); file_progress_layout.addWidget(self.elapsed_time_label); file_progress_layout.addWidget(self.etr_label)
-        progress_layout.addLayout(file_progress_layout); progress_layout.addWidget(self.file_progress_bar); layout.addWidget(progress_group)
-        log_group = QtWidgets.QGroupBox("Log"); log_layout = QtWidgets.QVBoxLayout(log_group); log_layout.addWidget(self.log_text_edit); layout.addWidget(log_group)
-        button_layout = QtWidgets.QHBoxLayout(); button_layout.addStretch(); button_layout.addWidget(self.cancel_btn); button_layout.addWidget(self.start_btn); layout.addLayout(button_layout)
+        progress_layout.addLayout(file_progress_layout); progress_layout.addWidget(self.file_progress_bar)
+        main_dialog_layout.addWidget(progress_group)
+        log_group = QtWidgets.QGroupBox("Log"); log_layout = QtWidgets.QVBoxLayout(log_group); log_layout.addWidget(self.log_text_edit)
+        main_dialog_layout.addWidget(log_group)
+        button_layout = QtWidgets.QHBoxLayout(); button_layout.addStretch(); button_layout.addWidget(self.cancel_btn); button_layout.addWidget(self.start_btn)
+        main_dialog_layout.addLayout(button_layout)
 
+        # --- Connections ---
         self.add_videos_btn.clicked.connect(self.add_videos); self.browse_settings_btn.clicked.connect(self.browse_settings); self.browse_csv_dir_btn.clicked.connect(self.browse_csv_dir); self.browse_output_btn.clicked.connect(self.browse_output)
         self.start_btn.clicked.connect(self.start_processing); self.cancel_btn.clicked.connect(self.cancel_processing)
         self.cancel_btn.setEnabled(False); self.save_video_checkbox.stateChanged.connect(self.on_save_video_changed); self.save_trajectory_img_checkbox.stateChanged.connect(self.on_save_trajectory_changed)
@@ -96,6 +116,7 @@ class BatchProcessDialog(QtWidgets.QDialog):
         self.batch_worker = BatchProcessor(
             self.video_files, self.settings_line_edit.text(), self.output_dir_line_edit.text(),
             csv_dir=self.csv_dir_line_edit.text(),
+            max_animals_per_tank=self.max_animals_spinbox.value(),
             save_video=self.save_video_checkbox.isChecked(),
             save_csv=self.save_csv_checkbox.isChecked(),
             save_centroid_csv=self.save_centroid_csv_checkbox.isChecked(),
@@ -115,8 +136,7 @@ class BatchProcessDialog(QtWidgets.QDialog):
         if self.batch_worker and self.batch_worker.is_running: QtWidgets.QMessageBox.information(self, "Finished", "Batch processing has completed.")
     def update_overall_progress(self, current_num, total, filename):
         self.overall_progress_bar.setValue(int(current_num * 100 / total)); self.overall_progress_label.setText(f"Processing file {current_num} of {total}: {filename}")
-        self.file_progress_bar.setValue(0); self.file_progress_label.setText("Frame: 0 / 0"); self.elapsed_time_label.setText("Elapsed: 00:00:00"); self.etr_label.setText("ETR: --:--:--")
-        self.speed_label.setText("Speed: 0.00 FPS")
+        self.file_progress_bar.setValue(0); self.file_progress_label.setText("Frame: 0 / 0"); self.elapsed_time_label.setText("Elapsed: 00:00:00"); self.etr_label.setText("ETR: --:--:--"); self.speed_label.setText("Speed: 0.00 FPS")
     def update_file_progress(self, percentage, current_frame, total_frames):
         self.file_progress_bar.setValue(percentage); self.file_progress_label.setText(f"Frame: {current_frame} / {total_frames}")
     def update_time_labels(self, elapsed, etr):

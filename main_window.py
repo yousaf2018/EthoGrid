@@ -32,7 +32,7 @@ def resource_path(relative_path):
 class VideoPlayer(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(VideoPlayer, self).__init__(parent)
-        self.setWindowTitle("EthoGrid")
+        self.setWindowTitle("📊 EthoGrid")
         
         logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): self.setWindowIcon(QtGui.QIcon(logo_path))
@@ -82,6 +82,11 @@ class VideoPlayer(QtWidgets.QWidget):
         self.rotate_slider, self.scale_x_slider, self.scale_y_slider, self.move_x_slider, self.move_y_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal), QtWidgets.QSlider(QtCore.Qt.Horizontal), QtWidgets.QSlider(QtCore.Qt.Horizontal), QtWidgets.QSlider(QtCore.Qt.Horizontal), QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.rotate_slider.setRange(-180, 180); self.scale_x_slider.setRange(10, 200); self.scale_y_slider.setRange(10, 200); self.move_x_slider.setRange(-100, 100); self.move_y_slider.setRange(-100, 100)
         self.rotate_slider.setValue(0); self.scale_x_slider.setValue(100); self.scale_y_slider.setValue(100); self.move_x_slider.setValue(0); self.move_y_slider.setValue(0)
+        
+        self.processing_options_group = QtWidgets.QGroupBox("Processing Options")
+        self.max_animals_spinbox = QtWidgets.QSpinBox(); self.max_animals_spinbox.setToolTip("Enforce a maximum number of animals per tank. Detections with the highest confidence will be kept."); self.max_animals_spinbox.setRange(1, 10); self.max_animals_spinbox.setValue(1)
+        self.apply_filter_btn = QtWidgets.QPushButton("Apply Filter")
+
         self.tank_selection_label = QtWidgets.QLabel("Selected Tanks: None"); self.select_all_btn, self.clear_selection_btn = QtWidgets.QPushButton("Select All"), QtWidgets.QPushButton("Clear Selection")
         self.inference_btn = QtWidgets.QPushButton("🔮 Run YOLO Detection..."); self.segmentation_btn = QtWidgets.QPushButton("🎨 Run YOLO Segmentation..."); self.load_video_btn, self.load_csv_btn = QtWidgets.QPushButton("🎬 Load Video"), QtWidgets.QPushButton("📄 Load Detections")
         self.batch_process_btn = QtWidgets.QPushButton("🚀 Batch Process...")
@@ -97,7 +102,7 @@ class VideoPlayer(QtWidgets.QWidget):
         processing_toolbar = QtWidgets.QHBoxLayout();
         logo_label = QtWidgets.QLabel(); logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): logo_label.setPixmap(QtGui.QPixmap(logo_path).scaled(32, 32, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
-        # processing_toolbar.addWidget(logo_label)
+        processing_toolbar.addWidget(logo_label)
         processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn); processing_toolbar.addStretch()
         file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.save_excel_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
         main_layout.addLayout(processing_toolbar); main_layout.addLayout(file_toolbar)
@@ -108,95 +113,49 @@ class VideoPlayer(QtWidgets.QWidget):
         right_pane_widget = QtWidgets.QWidget(); right_pane_widget.setFixedWidth(280); right_pane_layout = QtWidgets.QVBoxLayout(right_pane_widget); right_pane_layout.addWidget(self.legend_group_box)
         grid_config_layout = QtWidgets.QGridLayout(grid_config_group); grid_config_layout.addWidget(QtWidgets.QLabel("Columns:"), 0, 0); grid_config_layout.addWidget(self.grid_cols_spin, 0, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Rows:"), 1, 0); grid_config_layout.addWidget(self.grid_rows_spin, 1, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Line Thickness:"), 2, 0); grid_config_layout.addWidget(self.line_thickness_spin, 2, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Rotation:"), 3, 0); grid_config_layout.addWidget(self.rotate_slider, 3, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Scale X:"), 4, 0); grid_config_layout.addWidget(self.scale_x_slider, 4, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Scale Y:"), 5, 0); grid_config_layout.addWidget(self.scale_y_slider, 5, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Move X:"), 6, 0); grid_config_layout.addWidget(self.move_x_slider, 6, 1); grid_config_layout.addWidget(QtWidgets.QLabel("Move Y:"), 7, 0); grid_config_layout.addWidget(self.move_y_slider, 7, 1); grid_config_layout.addWidget(self.reset_grid_btn, 8, 0, 1, 2)
         right_pane_layout.addWidget(grid_config_group)
+        processing_layout = QtWidgets.QHBoxLayout(self.processing_options_group)
+        processing_layout.addWidget(QtWidgets.QLabel("Max Animals/Tank:")); processing_layout.addWidget(self.max_animals_spinbox); processing_layout.addWidget(self.apply_filter_btn)
+        right_pane_layout.addWidget(self.processing_options_group)
         selection_layout = QtWidgets.QHBoxLayout(); selection_layout.addWidget(self.tank_selection_label, stretch=1); selection_layout.addWidget(self.select_all_btn); selection_layout.addWidget(self.clear_selection_btn)
         right_pane_layout.addLayout(selection_layout); right_pane_layout.addStretch()
         main_h_layout.addLayout(left_pane_layout, stretch=1); main_h_layout.addWidget(right_pane_widget); main_layout.addLayout(main_h_layout)
         self.setMinimumSize(1280, 800)
 
     def setup_connections(self):
-        self.inference_btn.clicked.connect(self.open_yolo_dialog)
-        self.segmentation_btn.clicked.connect(self.open_yolo_segmentation_dialog)
-        self.batch_process_btn.clicked.connect(self.open_batch_dialog)
-        self.load_video_btn.clicked.connect(self.load_video)
-        self.load_csv_btn.clicked.connect(self.load_detections)
-        self.save_csv_btn.clicked.connect(self.save_detections_with_tanks)
-        self.export_video_btn.clicked.connect(self.export_video)
-        self.save_centroid_csv_btn.clicked.connect(self.save_centroid_csv)
-        self.save_excel_btn.clicked.connect(self.save_to_excel)
-        self.save_settings_btn.clicked.connect(self.save_settings)
-        self.load_settings_btn.clicked.connect(self.load_settings)
-        self.play_btn.clicked.connect(self.start_playback)
-        self.pause_btn.clicked.connect(self.pause_playback)
-        self.stop_btn.clicked.connect(self.stop_playback)
-        self.frame_slider.sliderMoved.connect(self.seek_frame)
-        self.grid_cols_spin.valueChanged.connect(self.update_grid_settings)
-        self.grid_rows_spin.valueChanged.connect(self.update_grid_settings)
-        self.line_thickness_spin.valueChanged.connect(self.update_line_thickness)
-        self.reset_grid_btn.clicked.connect(self.reset_grid_transform_and_ui)
-        self.rotate_slider.valueChanged.connect(self.update_grid_rotation)
-        self.scale_x_slider.valueChanged.connect(self.update_grid_scale)
-        self.scale_y_slider.valueChanged.connect(self.update_grid_scale)
-        self.move_x_slider.valueChanged.connect(self.update_grid_position)
-        self.move_y_slider.valueChanged.connect(self.update_grid_position)
-        self.rotate_slider.sliderReleased.connect(self.start_detection_processing)
-        self.scale_x_slider.sliderReleased.connect(self.start_detection_processing)
-        self.scale_y_slider.sliderReleased.connect(self.start_detection_processing)
-        self.move_x_slider.sliderReleased.connect(self.start_detection_processing)
-        self.move_y_slider.sliderReleased.connect(self.start_detection_processing)
-        self.select_all_btn.clicked.connect(self.select_all_tanks)
-        self.clear_selection_btn.clicked.connect(self.clear_tank_selection)
+        self.inference_btn.clicked.connect(self.open_yolo_dialog); self.segmentation_btn.clicked.connect(self.open_yolo_segmentation_dialog); self.batch_process_btn.clicked.connect(self.open_batch_dialog)
+        self.load_video_btn.clicked.connect(self.load_video); self.load_csv_btn.clicked.connect(self.load_detections); self.save_csv_btn.clicked.connect(self.save_detections_with_tanks); self.export_video_btn.clicked.connect(self.export_video); self.save_centroid_csv_btn.clicked.connect(self.save_centroid_csv); self.save_excel_btn.clicked.connect(self.save_to_excel); self.save_settings_btn.clicked.connect(self.save_settings); self.load_settings_btn.clicked.connect(self.load_settings)
+        self.play_btn.clicked.connect(self.start_playback); self.pause_btn.clicked.connect(self.pause_playback); self.stop_btn.clicked.connect(self.stop_playback); self.frame_slider.sliderMoved.connect(self.seek_frame)
+        self.grid_cols_spin.valueChanged.connect(self.update_grid_settings); self.grid_rows_spin.valueChanged.connect(self.update_grid_settings); self.line_thickness_spin.valueChanged.connect(self.update_line_thickness); self.reset_grid_btn.clicked.connect(self.reset_grid_transform_and_ui)
+        self.rotate_slider.valueChanged.connect(self.update_grid_rotation); self.scale_x_slider.valueChanged.connect(self.update_grid_scale); self.scale_y_slider.valueChanged.connect(self.update_grid_scale); self.move_x_slider.valueChanged.connect(self.update_grid_position); self.move_y_slider.valueChanged.connect(self.update_grid_position)
+        self.rotate_slider.sliderReleased.connect(self.start_detection_processing); self.scale_x_slider.sliderReleased.connect(self.start_detection_processing); self.scale_y_slider.sliderReleased.connect(self.start_detection_processing); self.move_x_slider.sliderReleased.connect(self.start_detection_processing); self.move_y_slider.sliderReleased.connect(self.start_detection_processing)
+        self.select_all_btn.clicked.connect(self.select_all_tanks); self.clear_selection_btn.clicked.connect(self.clear_tank_selection); self.apply_filter_btn.clicked.connect(self.start_detection_processing)
         self.grid_manager.transform_updated.connect(self.update_display)
-        self.video_label.mousePressEvent = self.handle_mouse_press
-        self.video_label.mouseMoveEvent = self.handle_mouse_move
-        self.video_label.mouseReleaseEvent = self.handle_mouse_release
+        self.video_label.mousePressEvent = self.handle_mouse_press; self.video_label.mouseMoveEvent = self.handle_mouse_move; self.video_label.mouseReleaseEvent = self.handle_mouse_release
 
-    def open_yolo_dialog(self):
-        dialog = YoloInferenceDialog(self)
-        dialog.exec_()
+    def open_yolo_dialog(self): dialog = YoloInferenceDialog(self); dialog.exec_()
+    def open_yolo_segmentation_dialog(self): dialog = YoloSegmentationDialog(self); dialog.exec_()
+    def open_batch_dialog(self): dialog = BatchProcessDialog(self); dialog.exec_()
         
-    def open_yolo_segmentation_dialog(self):
-        dialog = YoloSegmentationDialog(self)
-        dialog.exec_()
-        
-    def open_batch_dialog(self):
-        dialog = BatchProcessDialog(self)
-        dialog.exec_()
-
     def load_detections(self):
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Detection CSV", "", "CSV Files (*.csv)")
-        if not file_path:
-            return
-        try:
-            detections = {}
-            with open(file_path, newline="", encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                self.csv_headers = reader.fieldnames[:]
-                
-                coord_cols = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy']
-
-                for row in reader:
-                    idx = int(float(row["frame_idx"]))
-                    
-                    for col in coord_cols:
-                        if col in row and row[col]:
-                            try:
-                                row[col] = float(row[col])
-                            except (ValueError, TypeError):
-                                row[col] = None
-
-                    detections.setdefault(idx, []).append(row)
-
-            self.raw_detections = detections
-            self.processed_detections = {}
-            self.behavior_colors.clear()
-            all_behaviors = sorted(list(set(det['class_name'] for dets in self.raw_detections.values() for det in dets)))
-            for behavior in all_behaviors:
-                self.get_color_for_behavior(behavior)
-            self.update_legend_widget()
-            self.start_detection_processing()
-            QtWidgets.QMessageBox.information(self, "Success", f"Loaded {len(detections)} frames of detections.")
-        except Exception as e:
-            self.show_error(f"Error loading detections: {str(e)}")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Detection CSV", "", "CSV Files (*.csv)");
+        if file_path:
+            try:
+                detections = {};
+                with open(file_path, newline="", encoding='utf-8') as f:
+                    reader = csv.DictReader(f); self.csv_headers = reader.fieldnames[:]
+                    coord_cols = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'conf']
+                    for row in reader:
+                        idx = int(float(row["frame_idx"]))
+                        for col in coord_cols:
+                            if col in row and row[col]:
+                                try: row[col] = float(row[col])
+                                except (ValueError, TypeError): row[col] = None
+                        detections.setdefault(idx, []).append(row)
+                self.raw_detections = detections; self.processed_detections = {}; self.behavior_colors.clear()
+                all_behaviors = sorted(list(set(det['class_name'] for dets in self.raw_detections.values() for det in dets)))
+                for behavior in all_behaviors: self.get_color_for_behavior(behavior)
+                self.update_legend_widget(); self.start_detection_processing(); QtWidgets.QMessageBox.information(self, "Success", f"Loaded {len(detections)} frames of detections.")
+            except Exception as e: self.show_error(f"Error loading detections: {str(e)}")
 
     def save_detections_with_tanks(self):
         if not self.processed_detections: self.show_error("Please load and process detections before saving."); return
@@ -208,8 +167,7 @@ class VideoPlayer(QtWidgets.QWidget):
             for key in ['tank_number', 'cx', 'cy']:
                 if key not in new_headers: new_headers.append(key)
             with open(file_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=new_headers, extrasaction='ignore')
-                writer.writeheader()
+                writer = csv.DictWriter(f, fieldnames=new_headers, extrasaction='ignore'); writer.writeheader()
                 for det in all_detections:
                     row_to_write = det.copy()
                     for key in ['x1', 'y1', 'x2', 'y2', 'cx', 'cy']:
@@ -339,7 +297,7 @@ class VideoPlayer(QtWidgets.QWidget):
         if not self.raw_detections or self.video_size[0] == 0: return
         if self.detection_processor and self.detection_processor.isRunning(): self.detection_processor.stop(); self.detection_processor.wait()
         self.status_label.setText("Processing detections...")
-        self.detection_processor = DetectionProcessor(self.raw_detections, self.grid_manager.transform, self.grid_settings, self.video_size)
+        self.detection_processor = DetectionProcessor(self.raw_detections, self.grid_manager.transform, self.grid_settings, self.video_size, self.max_animals_spinbox.value())
         self.detection_processor.processing_finished.connect(self.on_processing_complete); self.detection_processor.error_occurred.connect(self.on_processing_error); self.detection_processor.finished.connect(self.detection_processor.deleteLater); self.detection_processor.finished.connect(self.on_processor_thread_finished)
         self.detection_processor.start(); self._update_button_states()
     def on_processor_thread_finished(self):
@@ -425,4 +383,4 @@ class VideoPlayer(QtWidgets.QWidget):
     def closeEvent(self, event):
         for worker in [self.video_loader, self.video_saver, self.detection_processor]:
             if worker: worker.stop(); worker.wait()
-        event.accept() 
+        event.accept()

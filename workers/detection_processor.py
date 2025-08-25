@@ -1,17 +1,19 @@
 # EthoGrid_App/workers/detection_processor.py
 
 from PyQt5.QtCore import QThread, pyqtSignal, QPointF
+from collections import defaultdict
 
 class DetectionProcessor(QThread):
     processing_finished = pyqtSignal(dict, dict)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, detections, grid_transform, grid_settings, video_size, parent=None):
+    def __init__(self, detections, grid_transform, grid_settings, video_size, max_animals_per_tank, parent=None):
         super().__init__(parent)
-        self.detections = detections
+        self.detections = {k: list(v) for k, v in detections.items()} # Make a mutable copy
         self.grid_transform = grid_transform
         self.grid_settings = grid_settings
         self.video_size = video_size
+        self.max_animals_per_tank = max_animals_per_tank
         self._is_running = True
 
     def stop(self):
@@ -35,43 +37,60 @@ class DetectionProcessor(QThread):
                 self.error_occurred.emit("Grid transform is not invertible. Cannot process detections.")
                 return
 
-            tank_data_for_timeline = {}
-            for frame_idx, dets in list(self.detections.items()):
+            # Step 1: Assign tank numbers to all detections
+            for frame_idx, dets in self.detections.items():
                 if not self._is_running: return
                 for det in dets:
-                    # Python's / operator produces a float, so precision is maintained here.
-                    cx = (float(det["x1"]) + float(det["x2"])) / 2.0
-                    cy = (float(det["y1"]) + float(det["y2"])) / 2.0
-                    
-                    det['cx'] = cx
-                    det['cy'] = cy
-                    
-                    tank_number = self._get_tank_for_point(cx, cy, w, h, cols, rows, inverse_transform)
-                    det['tank_number'] = tank_number
-                    
-                    if tank_number is not None:
-                        tank_data_for_timeline.setdefault(tank_number, {})[frame_idx] = det["class_name"]
+                    # Ensure cx/cy are calculated as floats
+                    if 'cx' not in det or det.get('cx') is None:
+                        det['cx'] = (float(det["x1"]) + float(det["x2"])) / 2.0
+                        det['cy'] = (float(det["y1"]) + float(det["y2"])) / 2.0
+                    det['tank_number'] = self._get_tank_for_point(det['cx'], det['cy'], w, h, cols, rows, inverse_transform)
+
+            # Step 2: Filter detections based on max_animals_per_tank by confidence
+            filtered_detections = defaultdict(list)
+            for frame_idx, dets_in_frame in self.detections.items():
+                if not self._is_running: return
+                
+                dets_by_tank = defaultdict(list)
+                for det in dets_in_frame:
+                    if det.get('tank_number') is not None:
+                        # Ensure confidence is a float for sorting
+                        try:
+                            det['conf'] = float(det.get('conf', 0.0))
+                        except (ValueError, TypeError):
+                            det['conf'] = 0.0
+                        dets_by_tank[det['tank_number']].append(det)
+                
+                for tank_num, dets_in_tank in dets_by_tank.items():
+                    dets_in_tank.sort(key=lambda d: d['conf'], reverse=True)
+                    filtered_detections[frame_idx].extend(dets_in_tank[:self.max_animals_per_tank])
+
+            # Step 3: Generate timeline from the FILTERED detections
+            tank_data_for_timeline = defaultdict(dict)
+            for frame_idx, dets in filtered_detections.items():
+                if not self._is_running: return
+                for det in dets:
+                    if det.get('tank_number') is not None:
+                        tank_data_for_timeline[det['tank_number']][frame_idx] = det["class_name"]
 
             timeline_segments = {}
             for tank_id, frames in tank_data_for_timeline.items():
                 if not self._is_running: return
                 if not frames: continue
-                segments = []
-                sorted_frames = sorted(frames.keys())
-                start_frame = sorted_frames[0]
-                current_behavior = frames[start_frame]
+                segments, sorted_frames = [], sorted(frames.keys())
+                start_frame, current_behavior = sorted_frames[0], frames[sorted_frames[0]]
                 for i in range(1, len(sorted_frames)):
-                    frame = sorted_frames[i]
-                    prev_frame = sorted_frames[i-1]
-                    behavior = frames[frame]
+                    frame, prev_frame, behavior = sorted_frames[i], sorted_frames[i-1], frames[sorted_frames[i]]
                     if behavior != current_behavior or frame != prev_frame + 1:
                         segments.append((start_frame, prev_frame, current_behavior))
-                        start_frame = frame
-                        current_behavior = behavior
+                        start_frame, current_behavior = frame, behavior
                 segments.append((start_frame, sorted_frames[-1], current_behavior))
                 timeline_segments[tank_id] = segments
             
             if self._is_running:
-                self.processing_finished.emit(self.detections, timeline_segments)
+                self.processing_finished.emit(filtered_detections, timeline_segments)
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             self.error_occurred.emit(f"Error during detection processing: {e}")
