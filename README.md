@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
-[![Deep Learning](https://img.shields.io/badge/AI-YOLOv8-purple.svg)](https://ultralytics.com/)
+[![Deep Learning](https://img.shields.io/badge/AI-YOLOv11-purple.svg)](https://ultralytics.com/)
 
 **EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides a complete end-to-end pipeline, from running AI-based **object detection and segmentation (YOLO)** on raw videos to interactively assigning detections to grid cells (tanks/arenas) and exporting multiple formats of annotated data and videos.
 
@@ -58,7 +58,7 @@ Follow these steps to get up and running in minutes.
 
 ### 1. Download the Application
 
--   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/v1.1.4/EthoGrid-APP.zip)**
+-   **[Download EthoGrid.exe for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid.zip)**
 
 Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
 
@@ -66,7 +66,7 @@ Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run
 
 To test the full functionality of the application immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
 
--   **Sample YOLOv8 Detection Model (`.pt` file):**
+-   **Sample YOLOv11 Detection Model (`.pt` file):**
     -   *This is required for the "YOLO Detection" feature.*
     -   **[Download Detection Model](https://drive.google.com/file/d/1-vmkZXYQQsS9cgR9E-OZURbYQVzyoSr7/view?usp=sharing)**
 -   **Sample Raw Video (`.mp4` file):**
@@ -165,4 +165,8 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 ## License
 
+
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
+
+
