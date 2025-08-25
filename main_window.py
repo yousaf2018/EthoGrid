@@ -32,7 +32,7 @@ def resource_path(relative_path):
 class VideoPlayer(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(VideoPlayer, self).__init__(parent)
-        self.setWindowTitle("📊 EthoGrid")
+        self.setWindowTitle("EthoGrid")
         
         logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): self.setWindowIcon(QtGui.QIcon(logo_path))
