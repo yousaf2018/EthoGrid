@@ -1,41 +1,25 @@
-# EthoGrid.spec
+# -*- mode: python ; coding: utf-8 -*-
 
-import os
-
-# Get the directory where this .spec file is located
-HERE = os.path.abspath(os.path.dirname(__file__))
-APP_FOLDER = os.path.join(HERE, 'EthoGrid_App')
-
-block_cipher = None
 
 a = Analysis(
-    [os.path.join(APP_FOLDER, 'main.py')],
-    pathex=[HERE],
+    ['main.py'],
+    pathex=[],
     binaries=[],
-    datas=[(os.path.join(APP_FOLDER, 'images'), 'images')],
-    hiddenimports=[
-        'pandas._libs.tslibs.timedeltas',
-        'pandas._libs.tslibs.np_datetime',
-        'pandas._libs.tslibs.nattype',
-        'pandas._libs.tslibs',
-        'openpyxl'
-    ],
+    datas=[],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
+    optimize=0,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
     name='EthoGrid',
@@ -51,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(APP_FOLDER, 'images', 'logo.ico')
+    icon=['K:\\Mahmood-Yousaf-Data\\BSF\\EthoGrid\\favicon.ico'],
 )

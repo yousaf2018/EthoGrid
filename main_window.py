@@ -20,6 +20,9 @@ from widgets.batch_dialog import BatchProcessDialog
 from widgets.yolo_inference_dialog import YoloInferenceDialog
 from widgets.yolo_segmentation_dialog import YoloSegmentationDialog
 from core.data_exporter import export_centroid_csv, export_to_excel_sheets, PANDAS_AVAILABLE
+from widgets.analysis_dialog import AnalysisDialog
+from widgets.video_splitter_dialog import VideoSplitterDialog
+from widgets.frame_extractor_dialog import FrameExtractorDialog # Import the new dialog
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -67,7 +70,6 @@ class VideoPlayer(QtWidgets.QWidget):
             QProgressBar { border: 1px solid #3a3a3a; border-radius: 3px; text-align: center; }
             QProgressBar::chunk { background-color: #3a6ea5; width: 10px; }
         """)
-        
         self.video_label = QtWidgets.QLabel(); self.video_label.setObjectName("videoLabel"); self.video_label.setAlignment(QtCore.Qt.AlignCenter); self.video_label.setMinimumSize(640, 480)
         self.status_label = QtWidgets.QLabel(""); self.status_label.setObjectName("statusLabel"); self.status_label.setAlignment(QtCore.Qt.AlignCenter)
         self.play_btn, self.pause_btn, self.stop_btn = QtWidgets.QPushButton("▶ Play"), QtWidgets.QPushButton("⏸ Pause"), QtWidgets.QPushButton("⏹ Stop")
@@ -90,6 +92,9 @@ class VideoPlayer(QtWidgets.QWidget):
         self.tank_selection_label = QtWidgets.QLabel("Selected Tanks: None"); self.select_all_btn, self.clear_selection_btn = QtWidgets.QPushButton("Select All"), QtWidgets.QPushButton("Clear Selection")
         self.inference_btn = QtWidgets.QPushButton("🔮 Run YOLO Detection..."); self.segmentation_btn = QtWidgets.QPushButton("🎨 Run YOLO Segmentation..."); self.load_video_btn, self.load_csv_btn = QtWidgets.QPushButton("🎬 Load Video"), QtWidgets.QPushButton("📄 Load Detections")
         self.batch_process_btn = QtWidgets.QPushButton("🚀 Batch Process...")
+        self.analysis_btn = QtWidgets.QPushButton("📈 Run Analysis...")
+        self.video_splitter_btn = QtWidgets.QPushButton("✂️ Video Splitter...")
+        self.frame_extractor_btn = QtWidgets.QPushButton("🖼️ Frame Extractor...")
         self.save_csv_btn, self.export_video_btn = QtWidgets.QPushButton("📝 Save w/ Tanks"), QtWidgets.QPushButton("📹 Export Video"); self.save_csv_btn.setEnabled(False); self.export_video_btn.setEnabled(False)
         self.save_centroid_csv_btn = QtWidgets.QPushButton("📈 Save Centroid CSV"); self.save_centroid_csv_btn.setEnabled(False)
         self.save_excel_btn = QtWidgets.QPushButton("📗 Save to Excel"); self.save_excel_btn.setEnabled(False)
@@ -102,11 +107,12 @@ class VideoPlayer(QtWidgets.QWidget):
         processing_toolbar = QtWidgets.QHBoxLayout();
         logo_label = QtWidgets.QLabel(); logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): logo_label.setPixmap(QtGui.QPixmap(logo_path).scaled(32, 32, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
-        processing_toolbar.addWidget(logo_label)
-        processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn); processing_toolbar.addStretch()
+        # processing_toolbar.addWidget(logo_label)
+        processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn);processing_toolbar.addWidget(self.analysis_btn);processing_toolbar.addWidget(self.frame_extractor_btn);processing_toolbar.addWidget(self.video_splitter_btn); processing_toolbar.addStretch(); 
         file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.save_excel_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
         main_layout.addLayout(processing_toolbar); main_layout.addLayout(file_toolbar)
-        
+        processing_toolbar.addStretch()
+
         main_h_layout = QtWidgets.QHBoxLayout(); left_pane_layout = QtWidgets.QVBoxLayout(); left_pane_layout.addWidget(self.video_label, stretch=1); left_pane_layout.addWidget(self.status_label)
         controls_layout = QtWidgets.QHBoxLayout(); controls_layout.addWidget(self.play_btn); controls_layout.addWidget(self.pause_btn); controls_layout.addWidget(self.stop_btn); controls_layout.addWidget(self.frame_slider, stretch=1); controls_layout.addWidget(self.frame_label)
         left_pane_layout.addLayout(controls_layout); left_pane_layout.addWidget(self.timeline_widget); left_pane_layout.addWidget(self.progress_bar)
@@ -131,7 +137,9 @@ class VideoPlayer(QtWidgets.QWidget):
         self.select_all_btn.clicked.connect(self.select_all_tanks); self.clear_selection_btn.clicked.connect(self.clear_tank_selection); self.apply_filter_btn.clicked.connect(self.start_detection_processing)
         self.grid_manager.transform_updated.connect(self.update_display)
         self.video_label.mousePressEvent = self.handle_mouse_press; self.video_label.mouseMoveEvent = self.handle_mouse_move; self.video_label.mouseReleaseEvent = self.handle_mouse_release
-
+        self.analysis_btn.clicked.connect(self.open_analysis_dialog)
+        self.video_splitter_btn.clicked.connect(self.open_video_splitter_dialog)
+        self.frame_extractor_btn.clicked.connect(self.open_frame_extractor_dialog)
     def open_yolo_dialog(self): dialog = YoloInferenceDialog(self); dialog.exec_()
     def open_yolo_segmentation_dialog(self): dialog = YoloSegmentationDialog(self); dialog.exec_()
     def open_batch_dialog(self): dialog = BatchProcessDialog(self); dialog.exec_()
@@ -188,7 +196,19 @@ class VideoPlayer(QtWidgets.QWidget):
         self.status_label.setText("")
         if error_msg: self.show_error(error_msg)
         else: QtWidgets.QMessageBox.information(self, "Success", f"Centroid CSV saved successfully to:\n{file_path}")
-
+    
+    # ### NEW METHOD ###
+    def open_analysis_dialog(self):
+        dialog = AnalysisDialog(self)
+        dialog.exec_()
+    # ### NEW METHOD ###
+    def open_video_splitter_dialog(self):
+        dialog = VideoSplitterDialog(self)
+        dialog.exec_()
+    # ### NEW METHOD ###
+    def open_frame_extractor_dialog(self):
+        dialog = FrameExtractorDialog(self)
+        dialog.exec_()
     def save_to_excel(self):
         if not self.processed_detections: self.show_error("Please load and process detections before exporting to Excel."); return
         default_name = "output_by_tank.xlsx"
@@ -314,13 +334,37 @@ class VideoPlayer(QtWidgets.QWidget):
         self.toggle_controls(True); self.progress_bar.setFormat(""); self.progress_bar.setTextVisible(False); self.progress_bar.setValue(0); self.show_error(f"Video export failed: {message}")
         if self.video_saver: self.video_saver.deleteLater(); self.video_saver = None
     def save_settings(self):
-        settings_data = {'grid_settings': self.grid_settings, 'line_thickness': self.line_thickness, 'grid_transform': {'center_x': self.grid_manager.center.x(), 'center_y': self.grid_manager.center.y(), 'angle': self.grid_manager.angle, 'scale_x': self.grid_manager.scale_x, 'scale_y': self.grid_manager.scale_y,}}
+        # ### NEW: Check if video is loaded ###
+        if self.video_size[0] == 0 or self.video_size[1] == 0:
+            self.show_error("Please load a video before saving settings to store its dimensions.")
+            return
+
+        settings_data = {
+            # ### NEW: Store video dimensions ###
+            'video_dimensions': {
+                'width': self.video_size[0],
+                'height': self.video_size[1]
+            },
+            'grid_settings': self.grid_settings,
+            'line_thickness': self.line_thickness,
+            'grid_transform': {
+                'center_x': self.grid_manager.center.x(),
+                'center_y': self.grid_manager.center.y(),
+                'angle': self.grid_manager.angle,
+                'scale_x': self.grid_manager.scale_x,
+                'scale_y': self.grid_manager.scale_y,
+            }
+        }
+        
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save Environment Settings", "settings.json", "JSON Files (*.json)")
         if not file_path: return
+            
         try:
-            with open(file_path, 'w') as f: json.dump(settings_data, f, indent=4)
+            with open(file_path, 'w') as f:
+                json.dump(settings_data, f, indent=4)
             QtWidgets.QMessageBox.information(self, "Success", f"Settings saved to {file_path}")
-        except Exception as e: self.show_error(f"Failed to save settings: {e}")
+        except Exception as e:
+            self.show_error(f"Failed to save settings: {e}")
     def load_settings(self):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Load Environment Settings", "", "JSON Files (*.json)")
         if not file_path: return
