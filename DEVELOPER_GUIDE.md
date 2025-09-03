@@ -43,37 +43,36 @@ EthoGrid is built on a few key principles:
 ---
 
 ## Project Structure Overview
+```text
 EthoGrid_App/
 ├── main.py
 ├── main_window.py
 |
 ├── core/
-│ ├── grid_manager.py
-│ ├── data_exporter.py
-│ ├── endpoints_analyzer.py
-│ └── stopwatch.py
+│   ├── grid_manager.py
+│   ├── data_exporter.py
+│   ├── endpoints_analyzer.py
+│   └── stopwatch.py
 |
 ├── workers/
-│ ├── video_loader.py
-│ ├── detection_processor.py
-│ ├── video_saver.py
-│ ├── yolo_processor.py
-│ ├── yolo_segmentation_processor.py
-│ ├── batch_processor.py
-│ ├── video_splitter.py
-│ ├── frame_extractor.py
-│ └── analysis_processor.py
+│   ├── video_loader.py
+│   ├── detection_processor.py
+│   ├── video_saver.py
+│   ├── yolo_processor.py
+│   ├── yolo_segmentation_processor.py
+│   ├── batch_processor.py
+│   ├── video_splitter.py
+│   ├── frame_extractor.py
+│   └── analysis_processor.py
 |
 └── widgets/
-├── timeline_widget.py
-├── yolo_inference_dialog.py
-├── yolo_segmentation_dialog.py
-├── batch_dialog.py
-├── video_splitter_dialog.py
-├── frame_extractor_dialog.py
-└── analysis_dialog.py
-
-
+    ├── timeline_widget.py
+    ├── yolo_inference_dialog.py
+    ├── yolo_segmentation_dialog.py
+    ├── batch_dialog.py
+    ├── video_splitter_dialog.py
+    ├── frame_extractor_dialog.py
+    └── analysis_dialog.py ```
 ---
 
 ## Detailed File Breakdown
