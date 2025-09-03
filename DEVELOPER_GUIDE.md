@@ -72,7 +72,8 @@ EthoGrid_App/
     ├── batch_dialog.py
     ├── video_splitter_dialog.py
     ├── frame_extractor_dialog.py
-    └── analysis_dialog.py ```
+    └── analysis_dialog.py
+```
 ---
 
 ## Detailed File Breakdown
