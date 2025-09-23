@@ -8,15 +8,12 @@ from workers.yolo_segmentation_processor import YoloSegmentationProcessor
 class YoloSegmentationDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("YOLO Segmentation")
-        self.setMinimumSize(700, 600)
+        self.setWindowTitle("YOLO Segmentation"); self.setMinimumSize(700, 600)
         self.video_files, self.yolo_thread, self.yolo_worker = [], None, None
         
-        main_widget = QtWidgets.QWidget()
-        form_layout = QtWidgets.QGridLayout(main_widget)
+        main_widget = QtWidgets.QWidget(); form_layout = QtWidgets.QGridLayout(main_widget)
         
-        self.video_list_widget = QtWidgets.QListWidget()
-        self.video_list_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.video_list_widget = QtWidgets.QListWidget(); self.video_list_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.add_videos_btn = QtWidgets.QPushButton("Add Video(s)...")
         self.add_directory_btn = QtWidgets.QPushButton("Add Directory...")
         self.remove_video_btn = QtWidgets.QPushButton("Remove Selected")
@@ -26,8 +23,6 @@ class YoloSegmentationDialog(QtWidgets.QDialog):
         self.output_dir_line_edit = QtWidgets.QLineEdit(); self.output_dir_line_edit.setPlaceholderText("Click 'Browse' to select an output folder")
         self.browse_model_btn = QtWidgets.QPushButton("Browse..."); self.browse_output_btn = QtWidgets.QPushButton("Browse...")
         self.confidence_spinbox = QtWidgets.QDoubleSpinBox(); self.confidence_spinbox.setRange(0.0, 1.0); self.confidence_spinbox.setSingleStep(0.05); self.confidence_spinbox.setValue(0.4)
-        self.batch_size_spinbox = QtWidgets.QSpinBox(value=16, minimum=1, maximum=256, toolTip="Number of frames for GPU to process at once. Higher is faster but uses more VRAM.")
-        
         self.save_video_checkbox = QtWidgets.QCheckBox("Save Segmented Video"); self.save_video_checkbox.setChecked(True)
         self.save_csv_checkbox = QtWidgets.QCheckBox("Save Segmentations CSV"); self.save_csv_checkbox.setChecked(True)
         self.start_btn = QtWidgets.QPushButton("Start Segmentation"); self.cancel_btn = QtWidgets.QPushButton("Cancel")
@@ -36,18 +31,11 @@ class YoloSegmentationDialog(QtWidgets.QDialog):
         self.elapsed_time_label = QtWidgets.QLabel("Elapsed: 00:00:00"); self.etr_label = QtWidgets.QLabel("ETR: --:--:--"); self.speed_label = QtWidgets.QLabel("Speed: 0.00 FPS")
         self.log_text_edit = QtWidgets.QTextEdit(); self.log_text_edit.setReadOnly(True)
 
-        file_buttons_layout = QtWidgets.QVBoxLayout()
-        file_buttons_layout.addWidget(self.add_videos_btn); file_buttons_layout.addWidget(self.add_directory_btn); file_buttons_layout.addWidget(self.remove_video_btn); file_buttons_layout.addWidget(self.clear_videos_btn); file_buttons_layout.addStretch()
+        file_buttons_layout = QtWidgets.QVBoxLayout(); file_buttons_layout.addWidget(self.add_videos_btn); file_buttons_layout.addWidget(self.add_directory_btn); file_buttons_layout.addWidget(self.remove_video_btn); file_buttons_layout.addWidget(self.clear_videos_btn); file_buttons_layout.addStretch()
         form_layout.addWidget(QtWidgets.QLabel("Video Files:"), 0, 0); form_layout.addWidget(self.video_list_widget, 1, 0, 1, 2); form_layout.addLayout(file_buttons_layout, 1, 2)
         form_layout.addWidget(QtWidgets.QLabel("YOLO Model File (-seg.pt):"), 2, 0); form_layout.addWidget(self.model_line_edit, 3, 0); form_layout.addWidget(self.browse_model_btn, 3, 1)
         form_layout.addWidget(QtWidgets.QLabel("Output Directory:"), 4, 0); form_layout.addWidget(self.output_dir_line_edit, 5, 0); form_layout.addWidget(self.browse_output_btn, 5, 1)
-        
-        options_group = QtWidgets.QGroupBox("Inference Options")
-        options_layout = QtWidgets.QFormLayout(options_group)
-        options_layout.addRow("Confidence Threshold:", self.confidence_spinbox)
-        options_layout.addRow("Batch Size:", self.batch_size_spinbox)
-        form_layout.addWidget(options_group, 6, 0, 1, 3)
-        
+        form_layout.addWidget(QtWidgets.QLabel("Confidence Threshold:"), 6, 0); form_layout.addWidget(self.confidence_spinbox, 6, 1)
         output_options_group = QtWidgets.QGroupBox("Output Options"); output_options_layout = QtWidgets.QHBoxLayout(output_options_group)
         output_options_layout.addWidget(self.save_video_checkbox); output_options_layout.addWidget(self.save_csv_checkbox); output_options_layout.addStretch()
         form_layout.addWidget(output_options_group, 7, 0, 1, 3)
@@ -65,66 +53,60 @@ class YoloSegmentationDialog(QtWidgets.QDialog):
         main_dialog_layout.addWidget(log_group)
         button_layout = QtWidgets.QHBoxLayout(); button_layout.addStretch(); button_layout.addWidget(self.cancel_btn); button_layout.addWidget(self.start_btn)
         main_dialog_layout.addLayout(button_layout)
-        
+
         self.add_videos_btn.clicked.connect(self.add_videos); self.add_directory_btn.clicked.connect(self.add_directory); self.remove_video_btn.clicked.connect(self.remove_selected); self.clear_videos_btn.clicked.connect(self.clear_all); self.browse_model_btn.clicked.connect(self.browse_model); self.browse_output_btn.clicked.connect(self.browse_output)
         self.start_btn.clicked.connect(self.start_processing); self.cancel_btn.clicked.connect(self.cancel_processing)
         self.cancel_btn.setEnabled(False)
-    
+
     def add_videos(self):
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(self, "Select Video Files", "", "Video Files (*.mp4 *.avi *.mov *.mkv)")
         if files:
             newly_added = []
             for f in files:
-                if f not in self.video_files: self.video_files.append(f); newly_added.append(os.path.basename(f))
+                if f not in self.video_files:
+                    self.video_files.append(f)
+                    newly_added.append(os.path.basename(f))
             if newly_added: self.video_list_widget.addItems(newly_added)
-
     def add_directory(self):
         directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory Containing Videos")
         if directory:
-            video_extensions = ('.mp4', '.avi', '.mov', '.mkv'); newly_found = []
+            video_extensions = ('.mp4', '.avi', '.mov', '.mkv')
+            newly_found = []
             for root, _, files in os.walk(directory):
                 for file in files:
                     if file.lower().endswith(video_extensions):
                         full_path = os.path.join(root, file)
-                        if full_path not in self.video_files: self.video_files.append(full_path); newly_found.append(os.path.basename(full_path))
+                        if full_path not in self.video_files:
+                            self.video_files.append(full_path)
+                            newly_found.append(os.path.basename(full_path))
             if newly_found: self.video_list_widget.addItems(newly_found)
             else: QtWidgets.QMessageBox.information(self, "No New Videos Found", f"No new video files were found in:\n{directory}")
-
     def remove_selected(self):
         selected_items = self.video_list_widget.selectedItems()
         if not selected_items: return
         for item in selected_items:
-            row = self.video_list_widget.row(item); self.video_list_widget.takeItem(row)
-            base_name = item.text(); self.video_files = [f for f in self.video_files if os.path.basename(f) != base_name]
-
+            row = self.video_list_widget.row(item)
+            self.video_list_widget.takeItem(row)
+            base_name = item.text()
+            self.video_files = [f for f in self.video_files if os.path.basename(f) != base_name]
     def clear_all(self):
         self.video_list_widget.clear(); self.video_files.clear()
-        
     def browse_model(self):
         file, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select YOLO Segmentation Model", "", "PyTorch Models (*.pt)");
         if file: self.model_line_edit.setText(file)
-
     def browse_output(self):
         directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory");
         if directory: self.output_dir_line_edit.setText(directory)
-
     def start_processing(self):
         if not self.video_files: QtWidgets.QMessageBox.warning(self, "Input Error", "Please add at least one video file."); return
         if not self.model_line_edit.text() or not os.path.exists(self.model_line_edit.text()): QtWidgets.QMessageBox.warning(self, "Input Error", "Please select a valid YOLO model (.pt) file."); return
         if not self.output_dir_line_edit.text() or not os.path.isdir(self.output_dir_line_edit.text()): QtWidgets.QMessageBox.warning(self, "Input Error", "Please select a valid output directory."); return
         if not self.save_video_checkbox.isChecked() and not self.save_csv_checkbox.isChecked(): QtWidgets.QMessageBox.warning(self, "Input Error", "Please select at least one output option."); return
-        
         self.toggle_controls(False); self.log_text_edit.clear()
-        
-        self.yolo_worker = YoloSegmentationProcessor(
-            self.video_files, self.model_line_edit.text(), self.output_dir_line_edit.text(), 
-            self.confidence_spinbox.value(), self.batch_size_spinbox.value(),
-            save_video=self.save_video_checkbox.isChecked(), save_csv=self.save_csv_checkbox.isChecked()
-        )
+        self.yolo_worker = YoloSegmentationProcessor(self.video_files, self.model_line_edit.text(), self.output_dir_line_edit.text(), self.confidence_spinbox.value(), save_video=self.save_video_checkbox.isChecked(), save_csv=self.save_csv_checkbox.isChecked())
         self.yolo_thread = QThread(); self.yolo_worker.moveToThread(self.yolo_thread)
         self.yolo_worker.overall_progress.connect(self.update_overall_progress); self.yolo_worker.file_progress.connect(self.update_file_progress); self.yolo_worker.log_message.connect(self.log_text_edit.append); self.yolo_worker.error.connect(self.on_processing_error); self.yolo_worker.finished.connect(self.on_processing_finished); self.yolo_worker.time_updated.connect(self.update_time_labels); self.yolo_worker.speed_updated.connect(self.update_speed_label); self.yolo_thread.started.connect(self.yolo_worker.run)
         self.yolo_thread.start()
-        
     def cancel_processing(self):
         if self.yolo_worker: self.yolo_worker.stop(); self.cancel_btn.setEnabled(False)
     def on_processing_error(self, message):

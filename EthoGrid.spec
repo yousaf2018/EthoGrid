@@ -35,5 +35,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['K:\\Mahmood-Yousaf-Data\\BSF\\EthoGrid\\favicon.ico'],
 )
