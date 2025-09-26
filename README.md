@@ -83,7 +83,7 @@ To test the full functionality immediately, download this complete set of sample
 
 -   **Sample YOLOv11 Detection Model (`.pt` file):**
     -   *This is required for the "YOLO detection model for betta fish" feature.*
-    -   **[Download Segmentation Model](https://drive.google.com/file/d/17WDbQ72Rn-DFkIKcp7ECL0ZfPHE84oGV/view?usp=sharing)**
+    -   **[Download Detection Model](https://drive.google.com/file/d/17WDbQ72Rn-DFkIKcp7ECL0ZfPHE84oGV/view?usp=sharing)**
 -   **Sample Raw Video (`.mp4` file):**
     -   *This is the video you will analyze.*
     -   **[Download Sample Video](https://drive.google.com/file/d/1ImicvjG2tSUdRys2nu_XtJ7B9jcZpnaI/view?usp=sharing)**
@@ -183,3 +183,4 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
