@@ -81,15 +81,15 @@ Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run
 
 To test the full functionality immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
 
--   **Sample YOLOv11 Segmentation Model (`.pt` file):**
-    -   *This is required for the "YOLO Segmentation" feature.*
-    -   **[Download Segmentation Model](https://drive.google.com/file/d/your_new_link_here/view?usp=sharing)**
+-   **Sample YOLOv11 Detection Model (`.pt` file):**
+    -   *This is required for the "YOLO detection model for betta fish" feature.*
+    -   **[Download Segmentation Model](https://drive.google.com/file/d/17WDbQ72Rn-DFkIKcp7ECL0ZfPHE84oGV/view?usp=sharing)**
 -   **Sample Raw Video (`.mp4` file):**
     -   *This is the video you will analyze.*
     -   **[Download Sample Video](https://drive.google.com/file/d/1ImicvjG2tSUdRys2nu_XtJ7B9jcZpnaI/view?usp=sharing)**
 -   **Pre-Generated Segmentation CSV (for Annotation Testing):**
     -   *Use this to skip inference and go directly to grid annotation.*
-    -   **[Download Segmentation CSV](https://drive.google.com/file/d/your_new_link_here/view?usp=sharing)**
+    -   **[Download Detection CSV]([https://drive.google.com/file/d/your_new_link_here/view?usp=sharing](https://drive.google.com/file/d/1nhEFKvDwPQzx4OWcioKXqTdT5EgD98eg/view?usp=sharing))**
 -   **Pre-Configured Grid Settings File (for Annotation Testing):**
     -   *Use this to instantly align the grid with the sample video.*
     -   **[Download Grid Settings .json](https://drive.google.com/file/d/1nPepLlHvBuyjzYqWehX1lnBLRMe-rEAW/view?usp=sharing)**
@@ -180,5 +180,6 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 ---
 
 ## License
+
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
