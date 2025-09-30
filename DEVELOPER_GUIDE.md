@@ -61,7 +61,7 @@ EthoGrid_App/
     ├── frame_extractor_dialog.py
     ├── analysis_dialog.py
     └── stats_dialog.py
-
+```
 ### Detailed File Breakdown
 
 #### 1. `main.py`: The Entry Point
