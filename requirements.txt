@@ -21,3 +21,5 @@ six
 pandas
 ultralytics
 openpyxl
+scipy
+seaborn

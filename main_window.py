@@ -23,6 +23,7 @@ from core.data_exporter import export_centroid_csv, export_to_excel_sheets, PAND
 from widgets.analysis_dialog import AnalysisDialog
 from widgets.video_splitter_dialog import VideoSplitterDialog
 from widgets.frame_extractor_dialog import FrameExtractorDialog # Import the new dialog
+from widgets.stats_dialog import StatsDialog
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -92,7 +93,8 @@ class VideoPlayer(QtWidgets.QWidget):
         self.tank_selection_label = QtWidgets.QLabel("Selected Tanks: None"); self.select_all_btn, self.clear_selection_btn = QtWidgets.QPushButton("Select All"), QtWidgets.QPushButton("Clear Selection")
         self.inference_btn = QtWidgets.QPushButton("🔮 Run YOLO Detection..."); self.segmentation_btn = QtWidgets.QPushButton("🎨 Run YOLO Segmentation..."); self.load_video_btn, self.load_csv_btn = QtWidgets.QPushButton("🎬 Load Video"), QtWidgets.QPushButton("📄 Load Detections")
         self.batch_process_btn = QtWidgets.QPushButton("🚀 Batch Process...")
-        self.analysis_btn = QtWidgets.QPushButton("📈 Run Analysis...")
+        self.analysis_btn = QtWidgets.QPushButton("📈 Endpoints Analysis...")
+        self.stats_btn = QtWidgets.QPushButton("📊 Statistical Analysis...")
         self.video_splitter_btn = QtWidgets.QPushButton("✂️ Video Splitter...")
         self.frame_extractor_btn = QtWidgets.QPushButton("🖼️ Frame Extractor...")
         self.save_csv_btn, self.export_video_btn = QtWidgets.QPushButton("📝 Save w/ Tanks"), QtWidgets.QPushButton("📹 Export Video"); self.save_csv_btn.setEnabled(False); self.export_video_btn.setEnabled(False)
@@ -108,7 +110,7 @@ class VideoPlayer(QtWidgets.QWidget):
         logo_label = QtWidgets.QLabel(); logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): logo_label.setPixmap(QtGui.QPixmap(logo_path).scaled(32, 32, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         # processing_toolbar.addWidget(logo_label)
-        processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn);processing_toolbar.addWidget(self.analysis_btn);processing_toolbar.addWidget(self.frame_extractor_btn);processing_toolbar.addWidget(self.video_splitter_btn); processing_toolbar.addStretch(); 
+        processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn);processing_toolbar.addWidget(self.analysis_btn);processing_toolbar.addWidget(self.stats_btn);processing_toolbar.addWidget(self.frame_extractor_btn);processing_toolbar.addWidget(self.video_splitter_btn); processing_toolbar.addStretch(); 
         file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.save_excel_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
         main_layout.addLayout(processing_toolbar); main_layout.addLayout(file_toolbar)
         processing_toolbar.addStretch()
@@ -140,10 +142,15 @@ class VideoPlayer(QtWidgets.QWidget):
         self.analysis_btn.clicked.connect(self.open_analysis_dialog)
         self.video_splitter_btn.clicked.connect(self.open_video_splitter_dialog)
         self.frame_extractor_btn.clicked.connect(self.open_frame_extractor_dialog)
+        self.stats_btn.clicked.connect(self.open_stats_dialog)
     def open_yolo_dialog(self): dialog = YoloInferenceDialog(self); dialog.exec_()
     def open_yolo_segmentation_dialog(self): dialog = YoloSegmentationDialog(self); dialog.exec_()
     def open_batch_dialog(self): dialog = BatchProcessDialog(self); dialog.exec_()
         
+    def open_stats_dialog(self):
+        dialog = StatsDialog(self)
+        dialog.exec_()
+
     def load_detections(self):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Detection CSV", "", "CSV Files (*.csv)");
         if file_path:
