@@ -30,8 +30,6 @@ This application was developed in the **[Laboratory of Professor Chung-Der Hsiao
 
 ---
 
----
-
 ## The EthoGrid Philosophy: A Complete, Controllable Workflow
 
 EthoGrid eliminates the need to stitch together multiple scripts and software. It provides a single, unified platform for the entire research pipeline:
@@ -230,6 +228,7 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
