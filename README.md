@@ -1,11 +1,13 @@
-# EthoGrid: An AI-Powered Spatial Behavior Analysis Tool
+# EthoGrid: Your Complete, One-Stop Solution for Behavioral Analysis
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5-green.svg)](https://pypi.org/project/PyQt5/)
-[![Deep Learning](https://img.shields.io/badge/AI-YOLOv11-purple.svg)](https://ultralytics.com/)
+[![Deep Learning](https://img.shields.io/badge/AI-YOLO-purple.svg)](https://ultralytics.com/)
 
-**EthoGrid** is a desktop application designed for researchers to analyze animal behavior from video recordings. It provides a complete end-to-end pipeline, from running AI-based **object detection and segmentation (YOLO)** on raw videos to interactively assigning detections to grid cells (tanks/arenas) and exporting multiple formats of annotated data, visualizations, and scientific endpoints.
+**EthoGrid** is a comprehensive desktop application engineered for researchers to perform end-to-end analysis of animal behavior from video recordings. It is designed as a **one-stop solution**, guiding you from raw, unlabeled videos to final, publication-ready statistical reports and graphs.
+
+Every stage of the EthoGrid pipeline is designed to be **transparent, customizable, and reviewable**, giving you full scientific control over your data.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/yousaf2018/EthoGrid/main/images/android-chrome-512x512.png" alt="EthoGrid Logo" width="200">
@@ -16,15 +18,25 @@
 
 ---
 
+## The EthoGrid Philosophy: A Complete, Controllable Workflow
+
+EthoGrid eliminates the need to stitch together multiple scripts and software. It provides a single, unified platform for the entire research pipeline:
+
+1.  **Video Preparation**: Split long videos and extract frames for AI model training.
+2.  **AI-Powered Tracking**: Run high-performance YOLO models for object detection or segmentation to generate raw tracking data.
+3.  **Data Annotation & Cleaning**: Interactively align a virtual grid to your experimental setup, assign tracking data to specific arenas, and clean the data.
+4.  **Endpoint Calculation**: Compute a rich set of scientific endpoints with a powerful interactive tool that allows for fine-tuning of parameters and visual validation.
+5.  **Statistical Analysis & Visualization**: Perform robust statistical tests (T-test, ANOVA, Mann-Whitney, etc.) on your endpoint data, with intelligent test selection and full control over publication-quality plots.
+
+---
+
 ## Table of Contents
 - [Key Features](#key-features)
 - [Standalone Utilities](#standalone-utilities)
-- [Getting Started for Users (No Installation Needed)](#getting-started-for-users-no-installation-needed)
-  - [1. Download the Application](#1-download-the-application)
-  - [2. Download Sample Files](#2-download-sample-files)
-- [How to Use EthoGrid: A Step-by-Step Workflow](#how-to-use-ethogrid-a-step-by-step-workflow)
-- [For Developers](#for-developers)
+- [The Complete Workflow](#the-complete-workflow-a-step-by-step-guide)
 - [Output Files](#output-files)
+- [Getting Started for Users (No Installation Needed)](#getting-started-for-users-no-installation-needed)
+- [For Developers](#for-developers)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -35,26 +47,24 @@
 -   **High-Performance YOLO Inference**:
     -   **GPU Accelerated**: Automatically detects and utilizes NVIDIA GPUs for massive speed improvements, while gracefully falling back to CPU if a GPU is not available.
     -   **Object Detection & Instance Segmentation**: Supports both standard bounding box models and precise pixel-level segmentation models (`-seg.pt`).
--   **Powerful & Flexible Data Input**:
-    -   **Batch File Handling**: Add individual videos/CSVs or entire directories. The application will recursively find all relevant files.
-    -   **File List Management**: Easily remove selected files or clear the entire list before processing.
--   **Advanced Batch Processing & Data Cleaning**:
-    -   **Batch Annotation**: Apply a saved grid configuration to a batch of videos and their detection files, automating the tank assignment process for large datasets.
-    -   **Single Animal per Tank**: Automatically filter detections within each tank to keep only the one with the highest confidence score per frame, ensuring clean data for single-animal tracking.
 -   **Interactive Grid System**:
     -   Define a virtual grid to match your experimental setup. Interactively translate, rotate, and scale the grid with sliders or direct mouse control for perfect alignment.
-    -   **Settings Persistence**: Save and load complex grid configurations (including video dimensions) to a JSON file, ensuring reproducibility.
--   **Comprehensive Data Export & Visualization**:
-    -   **Annotated Videos**: Generate publication-ready videos with or without overlays (legend, timeline).
-    -   **Enriched CSV (Long Format)**: Export detection data with added columns for `tank_number` and high-precision `cx`, `cy` coordinates.
-    -   **Centroid CSV (Wide Format)**: Export a processed CSV with one row per frame and `x`/`y` columns for each tank, perfect for direct import into statistical software like GraphPad Prism.
-    -   **Excel Export (By Tank)**: Export all data into a single `.xlsx` file, with the detections for each tank neatly organized on its own separate sheet.
-    -   **Trajectory Plots**: Generate a high-quality image plotting the centroid path of animals. The plot correctly handles grid transformations and respects a user-defined time gap to prevent erroneous lines during tracking loss.
-    -   **Heatmaps**: Create scientific heatmaps superimposed on the first frame of the video to visualize spatial usage, complete with a clear color legend.
--   **Scientific Endpoints Analysis**:
-    -   A dedicated module to batch-calculate a wide range of behavioral endpoints from your annotated CSV files.
-    -   Calculations are performed correctly on a **per-tank basis** using the geometric center of each tank derived from your saved grid settings.
-    -   Endpoints include: Total Distance, Average Speed, Time spent Moving/Freezing, Angular Velocity, Meandering, Time spent in Center, Fractal Dimension, Entropy, and more.
+    -   **Settings Persistence**: Save and load complex grid configurations to a JSON file, ensuring reproducibility.
+-   **Advanced Batch Processing & Data Cleaning**:
+    -   **Batch Annotation**: Apply a saved grid configuration to a batch of videos and their detection files, automating the tank assignment process for large datasets.
+    -   **Data Filtering**: Automatically filter detections within each tank to keep only the one with the highest confidence score per frame, ensuring clean data for single-animal tracking.
+-   **Comprehensive Data Export**:
+    -   Generate annotated videos, trajectory plots, heatmaps, and multiple formats of raw and processed data (`.csv`, `.xlsx`), giving you full access to your results at every stage.
+-   **Interactive & Customizable Endpoints Analysis**:
+    -   A dedicated module to calculate a wide range of behavioral endpoints.
+    -   **Visually Validate**: Load a sample video and your grid settings to see your setup and interactively fine-tune key parameters like the exact center of each tank.
+    -   **Flexible Analysis Modes**: Switch between "Top View" and "Side View" modes, which dynamically changes the available parameters and calculated endpoints to match your experiment type (e.g., open field vs. novel tank diving).
+    -   **Per-Tank Customization**: Define different zone division axes and percentages for each individual tank to account for complex camera angles.
+-   **Publication-Ready Statistical Analysis**:
+    -   **Intelligent Test Selection**: Automatically performs normality tests (e.g., Shapiro-Wilk) on your data and selects the appropriate significance test (T-test/ANOVA for normal data, Mann-Whitney/Kruskal-Wallis for non-normal data).
+    -   **Full User Control**: Provides the option to override the automatic selection and "force" a parametric test, along with full control over plot aesthetics (colors, fonts, sizes, error bars).
+    -   **One-Click Analysis**: Analyze all relevant endpoints across multiple control and treatment groups with a single click.
+    -   **Professional Outputs**: Generates high-quality bar plots with individual data points and significance annotations, plus a detailed statistical report in a clean `.csv` format.
 
 ---
 
@@ -64,6 +74,19 @@ EthoGrid also includes powerful, standalone tools for preparing your data.
 
 -   **Video Splitter**: A utility to split long video recordings into smaller, manageable chunks (e.g., 60-minute segments) without re-encoding, preserving the original quality.
 -   **Frame Extractor**: A tool for creating datasets. It can recursively find all videos in a directory structure and extract a specified number of random frames from each, creating uniquely named image files that are traceable to their source video and subfolder.
+
+---
+
+## The Complete Workflow: A Step-by-Step Guide
+
+This workflow demonstrates how to go from a raw video to a final statistical graph.
+
+1.  **Prepare Video (Optional)**: Use the **✂️ Video Splitter** to cut a long recording into 1-hour segments.
+2.  **Generate Tracking Data**: Use **🎨 Run YOLO Segmentation...** to run your trained model on the video segments. This produces a raw `_segmentations.csv` file for each.
+3.  **Annotate Data**: In the main window, **🎬 Load** a sample video and the corresponding `_segmentations.csv`. Interactively create and align the grid, then **💾 Save Settings** to a `grid.json` file.
+4.  **Batch Process**: Use **🚀 Batch Annotation...** to apply your saved `grid.json` to all your video segments and their `_segmentations.csv` files. This will generate the final, clean `_with_tanks.csv` files.
+5.  **Calculate Endpoints**: Use **📈 Run Analysis...** to process your `_with_tanks.csv` files. In this interactive dialog, you can fine-tune tank centers and other parameters, then run the analysis to produce a `consolidated_endpoints.xlsx` file.
+6.  **Perform Statistics**: Use **📊 Statistical Analysis...** to load your `consolidated_endpoints.xlsx` files, assign them to Control and Treatment groups, select the endpoints you want to compare, and run the analysis. The result is a folder of publication-quality plots and a final statistical report.
 
 ---
 
@@ -166,6 +189,16 @@ If you wish to run or modify the tool from source code:
     -   `{video_name}_endpoints.csv`: A CSV file containing all calculated behavioral endpoints for each tank.
 
 ---
+
+## Documentation
+
+For a deeper dive into the application's architecture and methods, please see the following guides:
+
+-   **[Developer's Guide & Code Architecture](DEVELOPER_GUIDE.md)**: A comprehensive overview of the project structure, class responsibilities, and data flow. Essential reading for anyone looking to modify or contribute to the codebase.
+-   **[Statistical Analysis Guide](STATISTICAL_ANALYSIS_GUIDE.md)**: A detailed explanation of every statistical test and calculation performed by the analysis module, including the formulas used and their scientific purpose.
+
+---
+
 
 ## Contributing
 
