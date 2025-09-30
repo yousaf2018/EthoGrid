@@ -18,6 +18,18 @@ Every stage of the EthoGrid pipeline is designed to be **transparent, customizab
 
 ---
 
+## Acknowledgements
+
+This application was developed in the **Laboratory of Professor Chung-Der Hsiao** in collaboration with **Chung Yuan Christian University**.
+
+<p align="center">
+  <a href="https://www.cycu.edu.tw/">
+    <img src="https://raw.githubusercontent.com/yousaf2018/EthoGrid/main/images/cycu.jpg" alt="Chung Yuan Christian University Logo" width="250">
+  </a>
+</p>
+
+---
+
 ## The EthoGrid Philosophy: A Complete, Controllable Workflow
 
 EthoGrid eliminates the need to stitch together multiple scripts and software. It provides a single, unified platform for the entire research pipeline:
