@@ -22,6 +22,8 @@ Every stage of the EthoGrid pipeline is designed to be **transparent, customizab
 
 This application was developed in the **[Laboratory of Professor Chung-Der Hsiao](https://cdhsiao.weebly.com/pi-cv.html)** in collaboration with **Chung Yuan Christian University**.
 
+Special credit and sincere gratitude are extended to **Professor Hsiao**, who shared his extensive research experience in biology and multiple domains, providing invaluable guidance and supervision throughout the development of this application.
+
 <p align="center">
   <a href="https://www.cycu.edu.tw/">
     <img src="https://raw.githubusercontent.com/yousaf2018/EthoGrid/main/images/cycu.jpg" alt="Chung Yuan Christian University Logo" width="250">
@@ -228,6 +230,7 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
