@@ -1,57 +1,29 @@
-# Stage 1: Build the environment with all dependencies
-# Use an official Python image that is based on the same OS as the NVIDIA image (Debian/Ubuntu family)
-# This ensures system library compatibility.
-FROM python:3.9-slim-bullseye AS builder
+# Use NVIDIA CUDA base for GPU + Ultralytics support
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
-# Install system dependencies needed by OpenCV and PyQt5
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libxext6 \
-    libxrender1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set up a working directory
-WORKDIR /app
-
-# Upgrade pip and install Python libraries
-# We install PyTorch first with its specific CUDA version
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-RUN pip install --no-cache-dir -r requirements.txt
-
-# ---------------------------------------------------------------------
-
-# Stage 2: Create the final, smaller application image
-# Use the official NVIDIA CUDA image as the final base for GPU support
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
-
-# Set environment variables
+# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Etc/UTC
-# Critical for PyQt5 GUI apps in Docker
 ENV QT_X11_NO_MITSHM=1
 
-# Install only the RUNTIME system dependencies that match the ones from the builder stage
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libxext6 \
-    libxrender1 \
+# Install system dependencies for PyQt5 + OpenCV + GUI
+# Added Acquire::Check-Date=false to bypass timestamp issues inside Docker/WSL2
+RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update && \
+    apt-get install -y --no-install-recommends \
+    git python3 python3-pip python3-dev \
+    libgl1-mesa-glx libglib2.0-0 \
+    libxkbcommon-x11-0 \
+    x11-apps \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user for better security
-RUN useradd -ms /bin/bash appuser
-USER appuser
-WORKDIR /home/appuser/app
+# Set python alias
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
-# Copy the installed Python packages from the builder stage
-COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Clone your GitHub repo into /app
+WORKDIR /app
+RUN git clone https://github.com/yousaf2018/EthoGrid.git .
 
-# Copy the application code
-COPY . .
+# Install Python dependencies
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Set the command to run when the container starts
-ENTRYPOINT ["python", "main.py"]
+# Default command: run your PyQt5 GUI app
+CMD ["python", "main.py"]
