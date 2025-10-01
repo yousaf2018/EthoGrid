@@ -20,7 +20,7 @@ Every stage of the EthoGrid pipeline is designed to be **transparent, customizab
 
 ## Acknowledgements
 
-This application was developed in the **[Laboratory of Professor Chung-Der Hsiao](https://cdhsiao.weebly.com/pi-cv.html)** in collaboration with **Chung Yuan Christian University**.
+This application was developed in the **[Laboratory of Professor Chung-Der Hsiao](https://cdhsiao.weebly.com/pi-cv.html)** in collaboration with **Chung Yuan Christian University, Taiwan**.
 
 Special credit and sincere gratitude are extended to **Professor Hsiao**, who shared his extensive research experience in biology and multiple domains, providing invaluable guidance and supervision throughout the development of this application.
 
@@ -230,6 +230,7 @@ Contributions are welcome! Please fork the repository, create a feature branch, 
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
