@@ -150,18 +150,16 @@ This workflow demonstrates how to use the sample files you downloaded.
 
 If you wish to run or modify the tool from source code:
 
-1.  **Prerequisites**: Python 3.9+, Git.
+1.  **Prerequisites**: Python 3.8+, Git.
 2.  **Setup**:
     ```bash
     # Clone the repository
     git clone https://github.com/yousaf2018/EthoGrid.git
     cd EthoGrid
-
-    # Create and activate a virtual environment (recommended)
-    python -m venv venv
-    source venv/bin/activate  # On macOS/Linux
-    # venv\Scripts\activate    # On Windows
-
+    conda create --name ethogrid-env python=3.8 -y
+    conda activate ethogrid-env
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    
     # Install dependencies
     pip install -r requirements.txt
 
@@ -227,6 +225,7 @@ This application was developed in the **[Laboratory of Professor Chung-Der Hsiao
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
