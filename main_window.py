@@ -24,7 +24,7 @@ from widgets.analysis_dialog import AnalysisDialog
 from widgets.video_splitter_dialog import VideoSplitterDialog
 from widgets.frame_extractor_dialog import FrameExtractorDialog # Import the new dialog
 from widgets.stats_dialog import StatsDialog
-
+from widgets.updater_dialog import UpdaterDialog
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -97,8 +97,9 @@ class VideoPlayer(QtWidgets.QWidget):
         self.stats_btn = QtWidgets.QPushButton("📊 Statistical Analysis...")
         self.video_splitter_btn = QtWidgets.QPushButton("✂️ Video Splitter...")
         self.frame_extractor_btn = QtWidgets.QPushButton("🖼️ Frame Extractor...")
+        self.update_btn = QtWidgets.QPushButton("🔄 Check for Updates")
         self.save_csv_btn, self.export_video_btn = QtWidgets.QPushButton("📝 Save w/ Tanks"), QtWidgets.QPushButton("📹 Export Video"); self.save_csv_btn.setEnabled(False); self.export_video_btn.setEnabled(False)
-        self.save_centroid_csv_btn = QtWidgets.QPushButton("📈 Save Centroid CSV"); self.save_centroid_csv_btn.setEnabled(False)
+        self.save_centroid_csv_btn = QtWidgets.QPushButton("📈 Save Centroid CSV"); self.save_centroid_csv_btn.setEnabled(False)        
         self.save_excel_btn = QtWidgets.QPushButton("📗 Save to Excel"); self.save_excel_btn.setEnabled(False)
         if not PANDAS_AVAILABLE:
             self.save_centroid_csv_btn.setToolTip("Install 'pandas' to enable this feature.")
@@ -110,7 +111,7 @@ class VideoPlayer(QtWidgets.QWidget):
         logo_label = QtWidgets.QLabel(); logo_path = resource_path("images/logo.png")
         if os.path.exists(logo_path): logo_label.setPixmap(QtGui.QPixmap(logo_path).scaled(32, 32, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
         # processing_toolbar.addWidget(logo_label)
-        processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn);processing_toolbar.addWidget(self.analysis_btn);processing_toolbar.addWidget(self.stats_btn);processing_toolbar.addWidget(self.frame_extractor_btn);processing_toolbar.addWidget(self.video_splitter_btn); processing_toolbar.addStretch(); 
+        processing_toolbar.addWidget(self.inference_btn); processing_toolbar.addWidget(self.segmentation_btn); processing_toolbar.addWidget(self.batch_process_btn);processing_toolbar.addWidget(self.analysis_btn);processing_toolbar.addWidget(self.stats_btn);processing_toolbar.addWidget(self.frame_extractor_btn);processing_toolbar.addWidget(self.video_splitter_btn);processing_toolbar.addWidget(self.update_btn); processing_toolbar.addStretch(); 
         file_toolbar = QtWidgets.QHBoxLayout(); file_toolbar.addWidget(self.load_video_btn); file_toolbar.addWidget(self.load_csv_btn); file_toolbar.addWidget(self.save_csv_btn); file_toolbar.addWidget(self.save_centroid_csv_btn); file_toolbar.addWidget(self.save_excel_btn); file_toolbar.addWidget(self.export_video_btn); file_toolbar.addStretch(); file_toolbar.addWidget(self.load_settings_btn); file_toolbar.addWidget(self.save_settings_btn)
         main_layout.addLayout(processing_toolbar); main_layout.addLayout(file_toolbar)
         processing_toolbar.addStretch()
@@ -143,6 +144,8 @@ class VideoPlayer(QtWidgets.QWidget):
         self.video_splitter_btn.clicked.connect(self.open_video_splitter_dialog)
         self.frame_extractor_btn.clicked.connect(self.open_frame_extractor_dialog)
         self.stats_btn.clicked.connect(self.open_stats_dialog)
+        self.update_btn.clicked.connect(self.open_updater_dialog)
+        
     def open_yolo_dialog(self): dialog = YoloInferenceDialog(self); dialog.exec_()
     def open_yolo_segmentation_dialog(self): dialog = YoloSegmentationDialog(self); dialog.exec_()
     def open_batch_dialog(self): dialog = BatchProcessDialog(self); dialog.exec_()
@@ -212,6 +215,16 @@ class VideoPlayer(QtWidgets.QWidget):
     def open_video_splitter_dialog(self):
         dialog = VideoSplitterDialog(self)
         dialog.exec_()
+    
+
+    def open_updater_dialog(self):
+        dialog = UpdaterDialog(self)
+        dialog.exec_()
+        
+    def closeEvent(self, event):
+        # Simple close is fine now
+        event.accept()
+
     # ### NEW METHOD ###
     def open_frame_extractor_dialog(self):
         dialog = FrameExtractorDialog(self)
