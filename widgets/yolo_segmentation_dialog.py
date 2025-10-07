@@ -4,8 +4,9 @@ import os
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread
 from workers.yolo_segmentation_processor import YoloSegmentationProcessor
+from widgets.base_dialog import BaseDialog 
 
-class YoloSegmentationDialog(QtWidgets.QDialog):
+class YoloSegmentationDialog(BaseDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("YOLO Segmentation"); self.setMinimumSize(700, 600)

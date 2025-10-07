@@ -1,8 +1,9 @@
 # EthoGrid_App/widgets/timeline_widget.py
 
 from PyQt5 import QtWidgets, QtGui, QtCore
+from widgets.base_dialog import BaseDialog 
 
-class TimelineWidget(QtWidgets.QWidget):
+class TimelineWidget(BaseDialog):
     """
     A custom widget to display behavior timelines for multiple tanks.
     """

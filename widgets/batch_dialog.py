@@ -4,8 +4,9 @@ import os
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread
 from workers.batch_processor import BatchProcessor
+from widgets.base_dialog import BaseDialog 
 
-class BatchProcessDialog(QtWidgets.QDialog):
+class BatchProcessDialog(BaseDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Batch Processing (Grid Annotation)")

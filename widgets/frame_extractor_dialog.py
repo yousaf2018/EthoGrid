@@ -4,8 +4,9 @@ import os
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread
 from workers.frame_extractor import FrameExtractor
+from widgets.base_dialog import BaseDialog 
 
-class FrameExtractorDialog(QtWidgets.QDialog):
+class FrameExtractorDialog(BaseDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Frame Extractor")

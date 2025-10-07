@@ -1,8 +1,9 @@
 # EthoGrid_App/widgets/range_slider.py
 
 from PyQt5 import QtWidgets, QtCore, QtGui
+from widgets.base_dialog import BaseDialog 
 
-class RangeSlider(QtWidgets.QWidget):
+class RangeSlider(BaseDialog):
     """ A custom double-ended slider widget for selecting a range with value labels. """
     valuesChanged = QtCore.pyqtSignal(int, int)
 

@@ -4,8 +4,9 @@ import os
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread
 from workers.yolo_processor import YoloProcessor
+from widgets.base_dialog import BaseDialog 
 
-class YoloInferenceDialog(QtWidgets.QDialog):
+class YoloInferenceDialog(BaseDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("YOLO Detection")
