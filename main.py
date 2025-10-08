@@ -16,10 +16,12 @@ def resource_path(relative_path):
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
+        # In PyInstaller, the path is relative to the app's root
+        return os.path.join(base_path, relative_path)
     except Exception:
         base_path = os.path.dirname(os.path.abspath(__file__))
     
-    # Correctly join the path to look inside the app's structure
+    # Correctly join the path to look inside the app's structure when run from source
     return os.path.join(base_path, relative_path)
 
 def create_rounded_pixmap(source_pixmap):
@@ -36,6 +38,22 @@ def create_rounded_pixmap(source_pixmap):
     source_pixmap.setMask(mask)
     return source_pixmap
 
+class GlobalScrollFilter(QtCore.QObject):
+    """
+    An event filter to globally disable the mouse wheel on specific widgets.
+    """
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.Wheel:
+            # ### THE FIX IS HERE ###
+            # Check for SpinBoxes, DoubleSpinBoxes, AND ComboBoxes
+            if isinstance(obj, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox, QtWidgets.QComboBox)):
+                # If the event is a wheel event and the object is one of our targets,
+                # return True to stop the event from being processed.
+                return True
+        # For all other events and objects, let them pass through.
+        return super().eventFilter(obj, event)
+
+
 if __name__ == "__main__":
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
     
@@ -47,6 +65,10 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle('Fusion')
     
+    # Create an instance of our event filter and install it on the application
+    scroll_filter = GlobalScrollFilter()
+    app.installEventFilter(scroll_filter)
+    
     # --- Splash Screen Logic ---
     splash = None
     try:
@@ -54,12 +76,9 @@ if __name__ == "__main__":
         if os.path.exists(logo_path):
             pixmap = QtGui.QPixmap(logo_path)
             
-            # ### THE FIX IS HERE ###
-            # Create a rounded version of the pixmap
             rounded_pixmap = create_rounded_pixmap(pixmap)
             
             splash = QtWidgets.QSplashScreen(rounded_pixmap, QtCore.Qt.WindowStaysOnTopHint)
-            # The mask is now inherent to the pixmap, but setting it again is safe
             splash.setMask(rounded_pixmap.mask())
             splash.show()
             app.processEvents()
