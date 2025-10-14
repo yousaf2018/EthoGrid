@@ -107,6 +107,29 @@ To test the full functionality immediately, download this complete set of sample
     -   **[Download Grid Settings .json](https://drive.google.com/file/d/1nPepLlHvBuyjzYqWehX1lnBLRMe-rEAW/view?usp=sharing)**
 
 ---
+## Installation Guide 
+
+If you wish to run or modify the tool from source code:
+
+1.  **Prerequisites**: Python 3.8+, Git.
+2.  **Setup**:
+    ```bash
+    # Clone the repository
+    git clone https://github.com/yousaf2018/EthoGrid.git
+    cd EthoGrid
+    conda create --name ethogrid-env python=3.8 -y
+    conda activate ethogrid-env
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    
+    # Install dependencies
+    pip install -r requirements.txt
+
+    # Run the application
+    python main.py
+    ```
+3.  **Developer Documentation**: For a full breakdown of the code architecture, see the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
+
+---
 
 ## How to Use EthoGrid: A Step-by-Step Workflow
 
@@ -133,30 +156,6 @@ This workflow demonstrates how to use the sample files you downloaded.
     -   Add your video(s) and select the same `grid_settings.json`.
     -   Choose your output folder and select which files to export (e.g., Trajectory Plot, Heatmap, Excel).
     -   Click **Start Processing**.
-
----
-
-## For Developers
-
-If you wish to run or modify the tool from source code:
-
-1.  **Prerequisites**: Python 3.8+, Git.
-2.  **Setup**:
-    ```bash
-    # Clone the repository
-    git clone https://github.com/yousaf2018/EthoGrid.git
-    cd EthoGrid
-    conda create --name ethogrid-env python=3.8 -y
-    conda activate ethogrid-env
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    
-    # Install dependencies
-    pip install -r requirements.txt
-
-    # Run the application
-    python main.py
-    ```
-3.  **Developer Documentation**: For a full breakdown of the code architecture, see the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 ---
 
@@ -215,6 +214,7 @@ This application was developed in the **[Laboratory of Professor Chung-Der Hsiao
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
