@@ -89,17 +89,7 @@ This workflow demonstrates how to go from a raw video to a final statistical gra
 
 ---
 
-## Getting Started for Users (No Installation Needed)
-
-Follow these steps to get up and running in minutes.
-
-### 1. Download the Application
-
--   **[Download EthoGrid.zip for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid.zip)**
-
-Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
-
-### 2. Download Sample Files
+### Download Sample Files
 
 To test the full functionality immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
 
@@ -225,6 +215,7 @@ This application was developed in the **[Laboratory of Professor Chung-Der Hsiao
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
