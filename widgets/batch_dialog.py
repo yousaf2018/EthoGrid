@@ -84,7 +84,7 @@ class BatchProcessDialog(BaseDialog):
     def on_save_trajectory_changed(self):
         self.time_gap_spinbox.setEnabled(self.save_trajectory_img_checkbox.isChecked())
     def add_videos(self):
-        files, _ = QtWidgets.QFileDialog.getOpenFileNames(self, "Select Video Files", "", "Video Files (*.mp4 *.avi *.mov)");
+        files, _ = QtWidgets.QFileDialog.getOpenFileNames(self, "Select Video Files", "", "Video Files (*.mp4 *.avi *.mov *.mkv)");
         if files:
             newly_added = []
             for f in files:

@@ -130,7 +130,7 @@ class AnalysisDialog(BaseDialog):
         self.centroid_sliders_group.setVisible(True)
 
     def load_video(self):
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Sample Video", "", "Video Files (*.mp4 *.avi *.mov)");
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Sample Video", "", "Video Files (*.mp4 *.avi *.mov *.mkv)");
         if path: self.video_line_edit.setText(path); self.update_visualization()
 
     def load_settings(self):

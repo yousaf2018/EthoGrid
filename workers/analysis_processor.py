@@ -11,15 +11,23 @@ from PyQt5.QtGui import QTransform
 
 from core.endpoints_analyzer import EndpointsAnalyzer
 
-def find_common_prefix(filenames):
-    """Finds the longest common starting string from a list of filenames."""
+def generate_output_filename(filenames):
+    """Generates a descriptive output filename from a list of input files."""
     if not filenames:
-        return "analysis"
-    # Use os.path.commonprefix on the basenames without extensions
-    basenames = [os.path.splitext(os.path.basename(f))[0] for f in filenames]
-    prefix = os.path.commonprefix(basenames)
-    # Clean up trailing characters that are often part of separators
-    return prefix.strip('_- ')
+        return "analysis_endpoints"
+    
+    basenames = [os.path.splitext(os.path.basename(f))[0].replace("_with_tanks", "") for f in filenames]
+    
+    if len(basenames) == 1:
+        name = basenames[0]
+    else:
+        name = f"{basenames[0]}_to_{basenames[-1]}"
+
+    # Sanitize and truncate the filename
+    invalid_chars = r'[]:*?/\\ '
+    for char in invalid_chars:
+        name = name.replace(char, '_')
+    return name[:100] # Truncate to a reasonable length
 
 class AnalysisProcessor(QThread):
     progress = pyqtSignal(int, int, str)
@@ -41,9 +49,9 @@ class AnalysisProcessor(QThread):
         total_files = len(self.csv_files)
         
         # ### THE FIX IS HERE ###
-        # Generate the output filename based on the common prefix of the input files
-        common_prefix = find_common_prefix(self.csv_files)
-        output_filename = f"{common_prefix}_endpoints.xlsx"
+        # Generate the output filename based on all input files
+        base_filename = generate_output_filename(self.csv_files)
+        output_filename = f"{base_filename}.xlsx"
         output_path = os.path.join(self.output_dir, output_filename)
         
         try:
