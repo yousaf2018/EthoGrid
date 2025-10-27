@@ -89,17 +89,7 @@ This workflow demonstrates how to go from a raw video to a final statistical gra
 
 ---
 
-## Getting Started for Users (No Installation Needed)
-
-Follow these steps to get up and running in minutes.
-
-### 1. Download the Application
-
--   **[Download EthoGrid.zip for Windows](https://github.com/yousaf2018/EthoGrid/releases/download/V1.1.5/EthoGrid.zip)**
-
-Simply download the ZIP file, extract it, and double-click `EthoGrid.exe` to run. There is no installation process.
-
-### 2. Download Sample Files
+### Download Sample Files
 
 To test the full functionality immediately, download this complete set of sample files. It's recommended to place them all in the same folder for easy access.
 
@@ -115,6 +105,29 @@ To test the full functionality immediately, download this complete set of sample
 -   **Pre-Configured Grid Settings File (for Annotation Testing):**
     -   *Use this to instantly align the grid with the sample video.*
     -   **[Download Grid Settings .json](https://drive.google.com/file/d/1nPepLlHvBuyjzYqWehX1lnBLRMe-rEAW/view?usp=sharing)**
+
+---
+## Installation Guide 
+
+If you wish to run or modify the tool from source code:
+
+1.  **Prerequisites**: Python 3.8+, Git.
+2.  **Setup**:
+    ```bash
+    # Clone the repository
+    git clone https://github.com/yousaf2018/EthoGrid.git
+    cd EthoGrid
+    conda create --name ethogrid-env python=3.8 -y
+    conda activate ethogrid-env
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    
+    # Install dependencies
+    pip install -r requirements.txt
+
+    # Run the application
+    python main.py
+    ```
+3.  **Developer Documentation**: For a full breakdown of the code architecture, see the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 ---
 
@@ -143,30 +156,6 @@ This workflow demonstrates how to use the sample files you downloaded.
     -   Add your video(s) and select the same `grid_settings.json`.
     -   Choose your output folder and select which files to export (e.g., Trajectory Plot, Heatmap, Excel).
     -   Click **Start Processing**.
-
----
-
-## For Developers
-
-If you wish to run or modify the tool from source code:
-
-1.  **Prerequisites**: Python 3.8+, Git.
-2.  **Setup**:
-    ```bash
-    # Clone the repository
-    git clone https://github.com/yousaf2018/EthoGrid.git
-    cd EthoGrid
-    conda create --name ethogrid-env python=3.8 -y
-    conda activate ethogrid-env
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    
-    # Install dependencies
-    pip install -r requirements.txt
-
-    # Run the application
-    python main.py
-    ```
-3.  **Developer Documentation**: For a full breakdown of the code architecture, see the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 ---
 
@@ -225,6 +214,8 @@ This application was developed in the **[Laboratory of Professor Chung-Der Hsiao
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
+
 
 
 
