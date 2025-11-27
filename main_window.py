@@ -89,7 +89,7 @@ class VideoPlayer(QtWidgets.QWidget):
         self.rotate_slider.setValue(0); self.scale_x_slider.setValue(100); self.scale_y_slider.setValue(100); self.move_x_slider.setValue(0); self.move_y_slider.setValue(0)
         
         self.processing_options_group = QtWidgets.QGroupBox("Processing Options")
-        self.max_animals_spinbox = QtWidgets.QSpinBox(); self.max_animals_spinbox.setToolTip("Enforce a maximum number of animals per tank. Detections with the highest confidence will be kept."); self.max_animals_spinbox.setRange(1, 10); self.max_animals_spinbox.setValue(1)
+        self.max_animals_spinbox = QtWidgets.QSpinBox(); self.max_animals_spinbox.setToolTip("Enforce a maximum number of animals per tank. Detections with the highest confidence will be kept."); self.max_animals_spinbox.setRange(1, 1000); self.max_animals_spinbox.setValue(1)
         self.apply_filter_btn = QtWidgets.QPushButton("Apply Filter")
 
         self.tank_selection_label = QtWidgets.QLabel("Selected Tanks: None"); self.select_all_btn, self.clear_selection_btn = QtWidgets.QPushButton("Select All"), QtWidgets.QPushButton("Clear Selection")

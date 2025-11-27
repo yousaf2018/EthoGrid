@@ -24,7 +24,7 @@ class BatchProcessDialog(BaseDialog):
         self.output_dir_line_edit = QtWidgets.QLineEdit(); self.output_dir_line_edit.setPlaceholderText("Click 'Browse' to select an output folder")
         self.browse_settings_btn = QtWidgets.QPushButton("Browse..."); self.browse_output_btn = QtWidgets.QPushButton("Browse..."); self.browse_csv_dir_btn = QtWidgets.QPushButton("Browse...")
         
-        self.max_animals_spinbox = QtWidgets.QSpinBox(); self.max_animals_spinbox.setToolTip("Enforce a maximum number of animals per tank."); self.max_animals_spinbox.setRange(1, 10); self.max_animals_spinbox.setValue(1)
+        self.max_animals_spinbox = QtWidgets.QSpinBox(); self.max_animals_spinbox.setToolTip("Enforce a maximum number of animals per tank."); self.max_animals_spinbox.setRange(1, 1000); self.max_animals_spinbox.setValue(1)
         self.frame_sample_rate_spinbox = QtWidgets.QSpinBox(); self.frame_sample_rate_spinbox.setToolTip("Use data from every Nth frame for trajectories and heatmaps (e.g., 30 = 1 point per second for a 30 FPS video)."); self.frame_sample_rate_spinbox.setRange(1, 10000); self.frame_sample_rate_spinbox.setValue(30)
         self.time_gap_spinbox = QtWidgets.QDoubleSpinBox(); self.time_gap_spinbox.setToolTip("Max time gap in seconds for trajectories."); self.time_gap_spinbox.setRange(0.1, 99999.0); self.time_gap_spinbox.setValue(1.0); self.time_gap_spinbox.setSingleStep(0.1)
         
