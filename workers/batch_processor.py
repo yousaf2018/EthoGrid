@@ -1,35 +1,35 @@
-# EthoGrid_App/workers/batch_processor.py
-
-import os, csv, json, traceback
+import os, csv, json, traceback, cv2
 from collections import defaultdict
 from PyQt5.QtCore import QThread, pyqtSignal, QPointF
 from PyQt5.QtGui import QTransform
-import cv2
+import numpy as np
+import pandas as pd
 
 from .video_saver import VideoSaver
 from core.data_exporter import export_centroid_csv, export_to_excel_sheets, export_trajectory_image, export_heatmap_image
 from core.stopwatch import Stopwatch
+from core.tracker import to_norfair, NORFAIR_AVAILABLE
+
+if NORFAIR_AVAILABLE:
+    from norfair import Tracker, OptimizedKalmanFilterFactory
 
 class BatchProcessor(QThread):
-    overall_progress = pyqtSignal(int, int, str)
-    file_progress = pyqtSignal(int, int, int)
-    log_message = pyqtSignal(str)
-    finished = pyqtSignal()
-    time_updated = pyqtSignal(str, str)
-    speed_updated = pyqtSignal(float)
+    overall_progress = pyqtSignal(int, int, str); file_progress = pyqtSignal(int, int, int); log_message = pyqtSignal(str)
+    finished = pyqtSignal(); time_updated = pyqtSignal(str, str); speed_updated = pyqtSignal(float)
 
-    def __init__(self, video_files, settings_file, output_dir, csv_dir, max_animals_per_tank, frame_sample_rate, save_video, save_csv, save_centroid_csv, save_excel, save_trajectory_img, save_heatmap_img, time_gap_seconds, draw_overlays, parent=None):
+    def __init__(self, video_files, settings_file, output_dir, csv_dir, 
+                 tracking_method, nofair_params, max_animals_per_tank,
+                 frame_sample_rate, save_video, save_csv, save_centroid_csv, 
+                 save_excel, save_trajectory_img, save_heatmap_img, 
+                 time_gap_seconds, draw_overlays, parent=None):
         super().__init__(parent)
         self.video_files = video_files; self.settings_file = settings_file; self.output_dir = output_dir; self.csv_dir = csv_dir
-        self.max_animals_per_tank = max_animals_per_tank
-        self.frame_sample_rate = frame_sample_rate
-        self.save_video = save_video; self.save_csv = save_csv; self.save_centroid_csv = save_centroid_csv; self.save_excel = save_excel
-        self.save_trajectory_img = save_trajectory_img; self.save_heatmap_img = save_heatmap_img
-        self.time_gap_seconds = time_gap_seconds
-        self.draw_overlays = draw_overlays; self.is_running = True
+        self.tracking_method = tracking_method; self.nofair_params = nofair_params; self.max_animals_per_tank = max_animals_per_tank
+        self.frame_sample_rate = frame_sample_rate; self.save_video = save_video; self.save_csv = save_csv; self.save_centroid_csv = save_centroid_csv
+        self.save_excel = save_excel; self.save_trajectory_img = save_trajectory_img; self.save_heatmap_img = save_heatmap_img
+        self.time_gap_seconds = time_gap_seconds; self.draw_overlays = draw_overlays; self.is_running = True
 
-    def stop(self):
-        self.log_message.emit("Stopping batch process..."); self.is_running = False
+    def stop(self): self.log_message.emit("Stopping batch process..."); self.is_running = False
 
     def _get_tank_for_point(self, x, y, w, h, cols, rows, inverse_transform):
         transformed_point = inverse_transform.map(QPointF(x, y)); tx, ty = transformed_point.x(), transformed_point.y()
@@ -41,12 +41,12 @@ class BatchProcessor(QThread):
         try:
             with open(self.settings_file, 'r') as f: settings_data = json.load(f)
             grid_settings = settings_data['grid_settings']; transform_settings = settings_data['grid_transform']
-        except Exception as e: self.log_message.emit(f"[ERROR] Failed to load settings file: {e}"); return
+        except Exception as e:
+            self.log_message.emit(f"[ERROR] Failed to load settings file: {e}"); return
 
         for idx, video_path in enumerate(self.video_files):
             if not self.is_running: break
-            video_filename = os.path.basename(video_path); self.overall_progress.emit(idx + 1, len(self.video_files), video_filename); self.file_progress.emit(0, 0, 0); self.time_updated.emit("00:00:00", "--:--:--")
-            self.speed_updated.emit(0.0)
+            video_filename = os.path.basename(video_path); self.overall_progress.emit(idx + 1, len(self.video_files), video_filename); self.file_progress.emit(0, 0, 0); self.time_updated.emit("00:00:00", "--:--:--"); self.speed_updated.emit(0.0)
             base_name = os.path.splitext(video_filename)[0]; search_dir = self.csv_dir if self.csv_dir and os.path.isdir(self.csv_dir) else os.path.dirname(video_path)
             csv_path = os.path.join(search_dir, base_name + ".csv")
             if not os.path.exists(csv_path):
@@ -56,51 +56,73 @@ class BatchProcessor(QThread):
             
             self.log_message.emit(f"Found matching detection file: {os.path.basename(csv_path)}")
             try:
-                detections, csv_headers = {}, []
+                raw_detections = defaultdict(list); csv_headers = []
                 with open(csv_path, newline="", encoding='utf-8') as f:
-                    reader = csv.DictReader(f); csv_headers = reader.fieldnames[:]
-                    coord_cols = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'conf']
+                    reader = csv.DictReader(f); csv_headers = reader.fieldnames or []
                     for row in reader:
                         frame_idx = int(float(row["frame_idx"]))
-                        for col in coord_cols:
-                            if col in row and row[col]:
-                                try: row[col] = float(row[col])
-                                except (ValueError, TypeError): row[col] = None
-                        detections.setdefault(frame_idx, []).append(row)
+                        for col, val in row.items():
+                            try: row[col] = float(val)
+                            except (ValueError, TypeError): pass
+                        raw_detections[frame_idx].append(row)
                 
-                self.log_message.emit("Assigning detections to tanks based on centroid...")
-                cap = cv2.VideoCapture(video_path)
+                self.log_message.emit("Assigning raw detections to tanks..."); cap = cv2.VideoCapture(video_path)
                 if not cap.isOpened(): self.log_message.emit(f"[ERROR] Could not open video: {video_filename}"); continue
                 video_w, video_h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)); video_fps, total_frames = cap.get(cv2.CAP_PROP_FPS) or 30.0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)); video_size = (video_w, video_h); cap.release()
                 final_transform = QTransform(); final_transform.translate(video_w * transform_settings['center_x'], video_h * transform_settings['center_y']); final_transform.rotate(transform_settings['angle']); final_transform.scale(transform_settings['scale_x'], transform_settings['scale_y']); final_transform.translate(-video_w / 2, -video_h / 2)
                 inverse_transform, _ = final_transform.inverted()
-                for dets in detections.values():
+                for frame_idx, dets in raw_detections.items():
                     for det in dets:
-                        if 'cx' not in det or det['cx'] is None: det['cx'], det['cy'] = (det["x1"] + det["x2"]) / 2.0, (det["y1"] + det["y2"]) / 2.0
+                        if 'cx' not in det or det.get('cx') is None: det['cx'], det['cy'] = (det.get("x1",0) + det.get("x2",0)) / 2.0, (det.get("y1",0) + det.get("y2",0)) / 2.0
                         det['tank_number'] = self._get_tank_for_point(det['cx'], det['cy'], video_w, video_h, grid_settings['cols'], grid_settings['rows'], inverse_transform)
 
-                self.log_message.emit(f"Filtering to max {self.max_animals_per_tank} animal(s) per tank by confidence...")
-                filtered_detections = defaultdict(list)
-                for frame_idx, dets_in_frame in detections.items():
-                    dets_by_tank = defaultdict(list)
-                    for det in dets_in_frame:
-                        if det.get('tank_number') is not None: dets_by_tank[det['tank_number']].append(det)
-                    for tank_num, dets_in_tank in dets_by_tank.items():
-                        dets_in_tank.sort(key=lambda d: d.get('conf', 0.0), reverse=True)
-                        filtered_detections[frame_idx].extend(dets_in_tank[:self.max_animals_per_tank])
-                detections = filtered_detections; self.log_message.emit("Filtering complete.")
-
+                detections = {}
+                if self.tracking_method == "Norfair (Multi-Object Tracking)":
+                    if not NORFAIR_AVAILABLE: self.log_message.emit("[ERROR] 'norfair' library not found. Please run 'pip install norfair filterpy'. Aborting."); continue
+                    self.log_message.emit(f"Applying Norfair multi-object tracking with params: {self.nofair_params}")
+                    num_tanks = grid_settings['cols'] * grid_settings['rows']; trackers = {i: Tracker(**self.nofair_params) for i in range(1, num_tanks + 1)}
+                    tracked_detections = defaultdict(list)
+                    for frame_idx in range(total_frames):
+                        if not self.is_running: break
+                        dets_this_frame = raw_detections.get(frame_idx, []); dets_by_tank = defaultdict(list)
+                        for det in dets_this_frame:
+                            if det.get('tank_number') is not None: dets_by_tank[int(det['tank_number'])].append(det)
+                        for tank_num, dets_in_tank in dets_by_tank.items():
+                            if tank_num not in trackers: continue
+                            dets_in_tank.sort(key=lambda d: d.get('conf', 0.0), reverse=True); denoised_dets = dets_in_tank[:self.max_animals_per_tank]
+                            norfair_dets = to_norfair(denoised_dets)
+                            tracked_objects = trackers[tank_num].update(detections=norfair_dets)
+                            for obj in tracked_objects:
+                                est_points = obj.estimate.flatten(); cx, cy = est_points[0], est_points[1]
+                                tracked_det = {'frame_idx': frame_idx, 'tank_number': tank_num, 'track_id': obj.id, 'class_name': obj.last_detection.data['class_name'], 'conf': obj.last_detection.data['conf'], 'x1': obj.last_detection.data['box'][0], 'y1': obj.last_detection.data['box'][1], 'x2': obj.last_detection.data['box'][2], 'y2': obj.last_detection.data['box'][3], 'polygon': obj.last_detection.data['polygon'], 'cx': cx, 'cy': cy}
+                                tracked_detections[frame_idx].append(tracked_det)
+                    detections = tracked_detections
+                    if 'track_id' not in csv_headers: csv_headers.append('track_id')
+                    self.log_message.emit("Norfair tracking complete.")
+                else: # Confidence Filter
+                    self.log_message.emit(f"Filtering to max {self.max_animals_per_tank} animal(s) per tank by confidence...")
+                    filtered_detections = defaultdict(list)
+                    for frame_idx, dets_in_frame in raw_detections.items():
+                        dets_by_tank = defaultdict(list)
+                        for det in dets_in_frame:
+                            if det.get('tank_number') is not None: dets_by_tank[det['tank_number']].append(det)
+                        for tank_num, dets_in_tank in dets_by_tank.items():
+                            dets_in_tank.sort(key=lambda d: d.get('conf', 0.0), reverse=True)
+                            filtered_detections[frame_idx].extend(dets_in_tank[:self.max_animals_per_tank])
+                    detections = filtered_detections; self.log_message.emit("Filtering complete.")
+                
                 if self.save_csv:
                     output_csv_path = os.path.join(self.output_dir, f"{base_name}_with_tanks.csv"); self.log_message.emit(f"Saving enriched CSV to: {os.path.basename(output_csv_path)}")
-                    all_processed_detections = [det for frame_dets in detections.values() for det in frame_dets]; new_headers = csv_headers[:]
-                    new_headers.extend(k for k in ['tank_number', 'cx', 'cy'] if k not in new_headers)
-                    with open(output_csv_path, 'w', newline='', encoding='utf-8') as f:
-                        writer = csv.DictWriter(f, fieldnames=new_headers, extrasaction='ignore'); writer.writeheader()
-                        for det in all_processed_detections:
-                            row_to_write = det.copy()
-                            for key in ['x1', 'y1', 'x2', 'y2', 'cx', 'cy']:
-                                if key in row_to_write and isinstance(row_to_write[key], float): row_to_write[key] = f"{row_to_write[key]:.4f}"
-                            writer.writerow(row_to_write)
+                    all_processed_detections = [det for frame_idx, dets in sorted(detections.items()) for det in dets]
+                    if all_processed_detections:
+                        final_headers = list(all_processed_detections[0].keys())
+                        with open(output_csv_path, 'w', newline='', encoding='utf-8') as f:
+                            writer = csv.DictWriter(f, fieldnames=final_headers); writer.writeheader()
+                            for det in all_processed_detections:
+                                row_to_write = det.copy()
+                                for key, val in row_to_write.items():
+                                    if isinstance(val, float): row_to_write[key] = f"{val:.4f}"
+                                writer.writerow(row_to_write)
                 if self.save_centroid_csv:
                     output_centroid_path = os.path.join(self.output_dir, f"{base_name}_centroids_wide.csv"); self.log_message.emit(f"Saving centroid CSV to: {os.path.basename(output_centroid_path)}")
                     error_msg = export_centroid_csv(detections, grid_settings['cols'] * grid_settings['rows'], output_centroid_path)
@@ -126,7 +148,7 @@ class BatchProcessor(QThread):
                     if self.draw_overlays:
                         for frame_idx_tl, dets in detections.items():
                             for det in dets:
-                                if det.get('tank_number') is not None: tank_data_for_timeline[det['tank_number']][frame_idx_tl] = det["class_name"]
+                                if det.get('tank_number') is not None: tank_data_for_timeline[int(det['tank_number'])][frame_idx_tl] = det["class_name"]
                     timeline_segments = {};
                     for tank_id, frames in tank_data_for_timeline.items():
                         if not frames: continue
@@ -146,8 +168,8 @@ class BatchProcessor(QThread):
                         frame_count_for_fps += 1
                         current_time = file_stopwatch.get_elapsed_time(as_float=True)
                         if current_time > fps_check_time + 1:
-                            processing_fps = frame_count_for_fps / (current_time - fps_check_time); self.speed_updated.emit(processing_fps)
-                            frame_count_for_fps = 0; fps_check_time = current_time
+                            processing_fps = frame_count_for_fps / (current_time - fps_check_time) if (current_time - fps_check_time) > 0 else 0
+                            self.speed_updated.emit(processing_fps); frame_count_for_fps = 0; fps_check_time = current_time
                         progress = int((frame_idx_export + 1) * 100 / total_frames); self.file_progress.emit(progress, frame_idx_export + 1, total_frames)
                         self.time_updated.emit(file_stopwatch.get_elapsed_time(), file_stopwatch.get_etr(frame_idx_export + 1, total_frames))
                     cap_export.release(); writer.release()
