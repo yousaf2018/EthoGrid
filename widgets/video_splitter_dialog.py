@@ -5,6 +5,7 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread
 from workers.video_splitter import VideoSplitter
 from widgets.base_dialog import BaseDialog 
+from widgets.custom_widgets import CustomSpinBox
 
 class VideoSplitterDialog(BaseDialog):
     def __init__(self, parent=None):
@@ -23,7 +24,9 @@ class VideoSplitterDialog(BaseDialog):
         self.output_dir_line_edit = QtWidgets.QLineEdit(); self.output_dir_line_edit.setPlaceholderText("Select a folder to save the video chunks")
         self.browse_output_btn = QtWidgets.QPushButton("Browse...")
         
-        self.chunk_duration_spinbox = QtWidgets.QSpinBox(value=60, minimum=1, maximum=1440, toolTip="Duration of each video chunk in minutes.")
+        # ### THE FIX IS HERE ###
+        # Increased maximum value to handle multi-day recordings
+        self.chunk_duration_spinbox = CustomSpinBox(value=3600, minimum=1, maximum=9999999, toolTip="Duration of each video chunk in seconds.")
         self.subfolder_checkbox = QtWidgets.QCheckBox("Create a subfolder for each video's chunks"); self.subfolder_checkbox.setChecked(True)
 
         self.start_btn = QtWidgets.QPushButton("Start Splitting"); self.cancel_btn = QtWidgets.QPushButton("Cancel")
@@ -37,7 +40,7 @@ class VideoSplitterDialog(BaseDialog):
         
         options_group = QtWidgets.QGroupBox("Options")
         options_layout = QtWidgets.QFormLayout(options_group)
-        options_layout.addRow("Chunk Duration (minutes):", self.chunk_duration_spinbox)
+        options_layout.addRow("Chunk Duration (seconds):", self.chunk_duration_spinbox)
         options_layout.addRow(self.subfolder_checkbox)
         form_layout.addWidget(options_group, 4, 0, 1, 3)
 
@@ -97,13 +100,13 @@ class VideoSplitterDialog(BaseDialog):
         self.splitter_worker.overall_progress.connect(self.update_overall_progress); self.splitter_worker.file_progress.connect(self.update_file_progress); self.splitter_worker.log_message.connect(self.log_text_edit.append); self.splitter_worker.finished.connect(self.on_splitting_finished); self.splitter_worker.error.connect(self.on_processing_error); self.splitter_thread.started.connect(self.splitter_worker.run)
         self.splitter_thread.start()
     def cancel_splitting(self):
-        if self.splitter_worker: self.splitter_worker.stop(); self.cancel_btn.setEnabled(False)
+        if hasattr(self, 'splitter_worker') and self.splitter_worker: self.splitter_worker.stop(); self.cancel_btn.setEnabled(False)
     def on_processing_error(self, message):
         QtWidgets.QMessageBox.critical(self, "Error", message); self.on_splitting_finished()
     def on_splitting_finished(self):
-        if self.splitter_thread: self.splitter_thread.quit(); self.splitter_thread.wait()
+        if hasattr(self, 'splitter_thread') and self.splitter_thread: self.splitter_thread.quit(); self.splitter_thread.wait()
         self.toggle_controls(True)
-        if self.splitter_worker and self.splitter_worker.is_running: QtWidgets.QMessageBox.information(self, "Finished", "Video splitting has completed.")
+        if hasattr(self, 'splitter_worker') and self.splitter_worker and self.splitter_worker.is_running: QtWidgets.QMessageBox.information(self, "Finished", "Video splitting has completed.")
     def update_overall_progress(self, current_num, total, filename):
         self.overall_progress_bar.setValue(int(current_num * 100 / total)); self.overall_progress_label.setText(f"Processing file {current_num} of {total}: {filename}")
         self.file_progress_bar.setValue(0); self.file_progress_label.setText("Status: Idle")
@@ -113,6 +116,6 @@ class VideoSplitterDialog(BaseDialog):
         self.start_btn.setEnabled(enabled); self.add_videos_btn.setEnabled(enabled); self.add_directory_btn.setEnabled(enabled); self.remove_video_btn.setEnabled(enabled); self.clear_videos_btn.setEnabled(enabled); self.browse_output_btn.setEnabled(enabled)
         self.cancel_btn.setEnabled(not enabled)
     def closeEvent(self, event):
-        if self.splitter_thread and self.splitter_thread.isRunning():
+        if hasattr(self, 'splitter_thread') and self.splitter_thread and self.splitter_thread.isRunning():
             self.cancel_splitting(); self.splitter_thread.quit(); self.splitter_thread.wait()
         event.accept()
