@@ -73,7 +73,8 @@ class VideoSplitter(QThread):
 
                 num_chunks = int(duration // self.chunk_seconds) + (1 if duration % self.chunk_seconds > 1 else 0)
                 
-                base_name = os.path.splitext(filename)[0]
+                # Split the filename and extension to ensure the output matches the input format
+                base_name, extension = os.path.splitext(filename)
                 current_output_dir = os.path.join(self.output_dir, base_name) if self.use_subfolders else self.output_dir
                 os.makedirs(current_output_dir, exist_ok=True)
                 
@@ -81,7 +82,8 @@ class VideoSplitter(QThread):
                     if not self.is_running: break
                     
                     start_time = chunk_idx * self.chunk_seconds
-                    output_file = os.path.join(current_output_dir, f"{base_name}_part_{chunk_idx+1:02d}.mp4")
+                    # Use the original extension instead of hardcoded .mp4
+                    output_file = os.path.join(current_output_dir, f"{base_name}_part_{chunk_idx+1:02d}{extension}")
                     self.log_message.emit(f"  ▶ Splitting Part {chunk_idx+1}/{num_chunks} -> {os.path.basename(output_file)}")
                     
                     cmd = ["ffmpeg", "-ss", str(start_time), "-i", video_path, "-t", str(self.chunk_seconds), "-c", "copy", output_file, "-y", "-progress", "pipe:1"]
