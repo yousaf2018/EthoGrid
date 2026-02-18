@@ -1,88 +1,87 @@
-#!/usr/bin/env python3
 import os
-import sys
 import subprocess
+import sys
 import platform
 
-ENV_NAME = "ethogrid_env_tracker"
+# -------------------------------
+# Configurable variables
+# -------------------------------
+ENV_NAME = "ethogrid-env-test"  # change if you want a different env name
+PYTHON_VERSION = "3.10"
+CONDA_CHANNEL = "conda-forge"
 
+# Pip-only packages
+PIP_PACKAGES = [
+    "ultralytics",
+    "pyinstaller",
+    "pyinstaller-hooks-contrib"
+]
+
+# Conda packages (all from conda-forge)
+CONDA_PACKAGES = [
+    "opencv",
+    "pyqt",
+    "qt",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "pillow",
+    "scipy",
+    "openpyxl"
+]
+
+# -------------------------------
+# Helper function to run shell commands
+# -------------------------------
 def run(cmd):
-    """Run command and exit if fails."""
-    print("\n>>", cmd)
-    ret = subprocess.call(cmd, shell=True)
-    if ret != 0:
-        print("❌ Command failed:", cmd)
+    print(f"\nRunning: {cmd}")
+    result = subprocess.run(cmd, shell=True)
+    if result.returncode != 0:
+        print(f"❌ Command failed: {cmd}")
         sys.exit(1)
 
-def main():
+# -------------------------------
+# Detect OS
+# -------------------------------
+OS_NAME = platform.system()
+print(f"Detected OS: {OS_NAME}")
+print("Make sure current Conda environment is deactivated before running this script.")
 
-    print("==============================================================")
-    print(" EthoGrid + YOLO + BoxMOT + Norfair + PyQt Installer")
-    print(" (Windows & Linux Compatible)")
-    print("==============================================================\n")
+# -------------------------------
+# Check if environment exists
+# -------------------------------
+print(f"\nChecking if environment '{ENV_NAME}' exists...")
+envs_list = subprocess.run("conda env list", shell=True, capture_output=True, text=True).stdout
+if ENV_NAME in envs_list:
+    print(f"Environment '{ENV_NAME}' exists. Removing it...")
+    run(f"conda remove -n {ENV_NAME} --all -y")
+else:
+    print(f"Environment '{ENV_NAME}' does not exist. No need to remove.")
 
-    system = platform.system()
-    print("Detected OS:", system)
+# -------------------------------
+# Create new environment
+# -------------------------------
+print(f"\nCreating new environment '{ENV_NAME}' with Python {PYTHON_VERSION}...")
+run(f"conda create -n {ENV_NAME} python={PYTHON_VERSION} -y")
 
-    # ----------------------------------------------------------
-    # 1. Create Conda Environment
-    # ----------------------------------------------------------
-    run(f"conda create -n {ENV_NAME} python=3.10 -y")
+# -------------------------------
+# Install Conda packages
+# -------------------------------
+conda_pkg_str = " ".join(CONDA_PACKAGES)
+print(f"\nInstalling Conda packages: {conda_pkg_str} ...")
+run(f"conda install -n {ENV_NAME} -c {CONDA_CHANNEL} {conda_pkg_str} -y")
 
-    # ----------------------------------------------------------
-    # 2. Install compiled libraries via conda-forge ONLY
-    #    (This avoids PyQt/Qt conflicts completely!)
-    # ----------------------------------------------------------
-    print("\nInstalling compiled libraries via conda-forge ...")
+# -------------------------------
+# Install pip-only packages
+# -------------------------------
+pip_pkg_str = " ".join(PIP_PACKAGES)
+print(f"\nInstalling pip-only packages: {pip_pkg_str} ...")
+run(f"conda run -n {ENV_NAME} pip install {pip_pkg_str}")
 
-    compiled_packages = (
-        "numpy=1.26 "
-        "opencv=4.8 "
-        "pyqt=5 "
-        "pyqt5-sip "
-        "scipy "
-        "pandas "
-        "matplotlib "
-        "seaborn "
-        "scikit-learn"
-    )
-
-    run(f"conda install -n {ENV_NAME} -c conda-forge {compiled_packages} -y")
-
-    # ----------------------------------------------------------
-    # 3. Install PyTorch (pip safe – pure python wheels)
-    # ----------------------------------------------------------
-    print("\nInstalling PyTorch (CPU only)...")
-    run(f"conda run -n {ENV_NAME} pip install torch torchvision torchaudio")
-
-    # ----------------------------------------------------------
-    # 4. Install YOLO + BoxMOT
-    # ----------------------------------------------------------
-    print("\nInstalling Ultralytics + BoxMOT...")
-    run(f"conda run -n {ENV_NAME} pip install ultralytics")
-    run(f"conda run -n {ENV_NAME} pip install boxmot")
-
-    # ----------------------------------------------------------
-    # 5. Install Norfair + FilterPy
-    # ----------------------------------------------------------
-    print("\nInstalling Norfair + FilterPy...")
-    run(f"conda run -n {ENV_NAME} pip install norfair")
-    run(f"conda run -n {ENV_NAME} pip install filterpy")
-
-    # ----------------------------------------------------------
-    # 6. Install remaining project requirements
-    # ----------------------------------------------------------
-    print("\nInstalling project requirements from requirements.txt ...")
-    run(f"conda run -n {ENV_NAME} pip install -r requirements.txt")
-
-    # ----------------------------------------------------------
-    # 7. Launch EthoGrid
-    # ----------------------------------------------------------
-    print("\n✅ Installation Complete!")
-    print("✅ Launching EthoGrid...\n")
-
-    run(f"conda run -n {ENV_NAME} python main.py")
-
-
-if __name__ == "__main__":
-    main()
+# -------------------------------
+# Done
+# -------------------------------
+print("\n✅ Setup complete!")
+print(f"To activate the environment, run:\n  conda activate {ENV_NAME}")
+print("Then run your project:\n  python main.py")

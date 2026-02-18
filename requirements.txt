@@ -5,15 +5,11 @@ fonttools
 kiwisolver
 matplotlib
 numpy
-opencv-python-headless==4.10.0.84
 packaging
 pillow
 pyinstaller
 pyinstaller-hooks-contrib
 pyparsing
-PyQt5
-PyQt5-Qt5
-PyQt5_sip
 python-dateutil
 setuptools
 six
@@ -21,5 +17,4 @@ pandas
 ultralytics
 openpyxl
 scipy
-
 seaborn

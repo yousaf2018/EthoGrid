@@ -16,7 +16,7 @@ except ImportError:
 def export_heatmap_image(processed_detections, video_path, output_path, time_gap_seconds, video_fps, frame_sample_rate):
     """
     Creates and saves a heatmap image superimposed on the first frame of the video,
-    using only a subsample of the frames and respecting time gaps.
+    using only a subsample of the frames.
     """
     try:
         cap = cv2.VideoCapture(video_path)
@@ -26,14 +26,16 @@ def export_heatmap_image(processed_detections, video_path, output_path, time_gap
         video_h, video_w, _ = base_image.shape
         cap.release()
 
+        # ### NEW: Filter detections based on the frame sample rate ###
         sampled_detections = {k: v for k, v in processed_detections.items() if k % frame_sample_rate == 0}
-        
-        points_by_animal = defaultdict(list)
+
+        # The rest of the logic uses the 'sampled_detections'
+        points_by_tank = defaultdict(list)
         all_dets = [det for frame_dets in sampled_detections.values() for det in frame_dets]
         for det in all_dets:
-            animal_id = det.get('track_id') or det.get('tank_number')
-            if animal_id is not None and det.get('cx') is not None:
-                points_by_animal[animal_id].append({
+            tank_num = det.get('tank_number')
+            if tank_num is not None and det.get('cx') is not None:
+                points_by_tank[int(tank_num)].append({
                     'frame_idx': int(det['frame_idx']),
                     'point': (int(det['cx']), int(det['cy']))
                 })
@@ -41,11 +43,12 @@ def export_heatmap_image(processed_detections, video_path, output_path, time_gap
         final_points_to_draw = []
         frame_gap_threshold = int(time_gap_seconds * video_fps) if video_fps > 0 else 1
 
-        for animal_id, detections in sorted(points_by_animal.items()):
+        for tank_num, detections in sorted(points_by_tank.items()):
             detections.sort(key=lambda d: d['frame_idx'])
             if not detections: continue
             
             final_points_to_draw.append(detections[0]['point'])
+
             for i in range(1, len(detections)):
                 if (detections[i]['frame_idx'] - detections[i-1]['frame_idx']) <= frame_gap_threshold:
                     final_points_to_draw.append(detections[i]['point'])
@@ -95,41 +98,33 @@ def export_trajectory_image(processed_detections, grid_settings, video_size, gri
                 tank_num = r * cols + c + 1
                 cv2.putText(untransformed_layer, f"Tank {tank_num}", (x1 + 15, y1 + 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2)
         
-        animal_paths = defaultdict(list)
-        inverse_transform, _ = grid_transform.inverted()
-        
+        tank_points = defaultdict(list)
         all_dets = [det for frame_dets in sampled_detections.values() for det in frame_dets]
+        inverse_transform, _ = grid_transform.inverted()
         for det in all_dets:
-            animal_id = det.get('track_id')
-            if animal_id is None:
-                animal_id = f"frame_{det['frame_idx']}_{det.get('tank_number', 'unknown')}"
-
-            cx, cy = det.get('cx'), det.get('cy')
-            if cx is not None and cy is not None:
+            tank_num, cx, cy = det.get('tank_number'), det.get('cx'), det.get('cy')
+            if tank_num is not None and cx is not None and cy is not None:
                 p = inverse_transform.map(QPointF(float(cx), float(cy)))
                 scaled_x = draw_area_x1 + (p.x() / video_w) * draw_area_w
                 scaled_y = draw_area_y1 + (p.y() / video_h) * draw_area_h
-                animal_paths[animal_id].append({'frame_idx': int(det['frame_idx']), 'point': (scaled_x, scaled_y)})
+                tank_points[int(tank_num)].append({'frame_idx': int(det['frame_idx']), 'point': (scaled_x, scaled_y)})
         
-        if animal_paths:
-            unique_ids = sorted(animal_paths.keys())
-            np.random.seed(42); colors = {uid: tuple(np.random.randint(0, 220, 3).tolist()) for uid in unique_ids}
+        if tank_points:
+            np.random.seed(42); colors = {tank_num: tuple(np.random.randint(0, 200, 3).tolist()) for tank_num in tank_points.keys()}
             frame_gap_threshold = int(time_gap_seconds * video_fps) if video_fps > 0 else 1
-            
-            for animal_id, detections in animal_paths.items():
+            for tank_num, detections in sorted(tank_points.items()):
                 detections.sort(key=lambda d: d['frame_idx'])
                 if not detections: continue
                 current_segment = [detections[0]['point']]
                 for i in range(1, len(detections)):
-                    prev_det_frame = detections[i-1]['frame_idx']; curr_det_frame = detections[i]['frame_idx']
-                    if (curr_det_frame - prev_det_frame) > frame_gap_threshold:
+                    prev_det, curr_det = detections[i-1], detections[i]
+                    if (curr_det['frame_idx'] - prev_det['frame_idx']) > frame_gap_threshold:
                         if len(current_segment) > 1:
-                            pts = np.array(current_segment, np.int32).reshape((-1, 1, 2)); cv2.polylines(untransformed_layer, [pts], isClosed=False, color=colors[animal_id], thickness=2)
-                        current_segment = [detections[i]['point']]
-                    else:
-                        current_segment.append(detections[i]['point'])
+                            pts = np.array(current_segment, np.int32).reshape((-1, 1, 2)); cv2.polylines(untransformed_layer, [pts], isClosed=False, color=colors[tank_num], thickness=2)
+                        current_segment = [curr_det['point']]
+                    else: current_segment.append(curr_det['point'])
                 if len(current_segment) > 1:
-                    pts = np.array(current_segment, np.int32).reshape((-1, 1, 2)); cv2.polylines(untransformed_layer, [pts], isClosed=False, color=colors[animal_id], thickness=2)
+                    pts = np.array(current_segment, np.int32).reshape((-1, 1, 2)); cv2.polylines(untransformed_layer, [pts], isClosed=False, color=colors[tank_num], thickness=2)
         
         M = np.float32([[grid_transform.m11(), grid_transform.m12(), grid_transform.dx()], [grid_transform.m21(), grid_transform.m22(), grid_transform.dy()]])
         final_image = cv2.warpAffine(untransformed_layer, M, (video_w, video_h), borderValue=(255, 255, 255))
@@ -141,35 +136,22 @@ def export_trajectory_image(processed_detections, grid_settings, video_size, gri
 def export_centroid_csv(processed_detections, total_tanks, output_path):
     if not PANDAS_AVAILABLE: return "The 'pandas' library is required. Please run: pip install pandas"
     try:
-        frame_data = defaultdict(dict)
-        all_dets = [det for frame_dets in processed_detections.values() for det in frame_dets]
-        
+        frame_data = defaultdict(dict); all_dets = [det for frame_dets in processed_detections.values() for det in frame_dets]
         for det in all_dets:
             if det.get('tank_number') is not None:
-                frame, tank = int(det['frame_idx']), int(det['tank_number'])
-                cx, cy = det.get('cx', ''), det.get('cy', '')
-                track_id = det.get('track_id')
-                # Create a unique column key for each track in each tank
-                animal_key = f"tank_{tank}_track_{int(track_id)}" if track_id is not None else f"tank_{tank}_detection"
-                frame_data[frame][animal_key] = (cx, cy)
-        
-        all_frames = sorted(frame_data.keys())
-        if not all_frames: return "No valid detections found to export."
-        
-        all_animal_ids = sorted(list(set(key for frame in frame_data.values() for key in frame.keys())))
-        
+                frame, tank = int(det['frame_idx']), int(det['tank_number']); cx, cy = det.get('cx', ''), det.get('cy', ''); adjusted_tank = tank - 1
+                if 0 <= adjusted_tank < total_tanks: frame_data[frame][adjusted_tank] = (cx, cy)
+        int_frame_data = {int(k): v for k, v in frame_data.items()}; all_frames = sorted(int_frame_data.keys())
+        if not all_frames: return "No valid detections with tank numbers found to export."
         output_rows = []
         for frame_idx in range(all_frames[0], all_frames[-1] + 1):
-            row_dict = {'frame': frame_idx}
-            frame_info = frame_data.get(frame_idx, {})
-            for animal_id in all_animal_ids:
-                cx, cy = frame_info.get(animal_id, ('', ''))
-                row_dict[f'{animal_id}_x'] = cx
-                row_dict[f'{animal_id}_y'] = cy
+            row_dict = {'position': frame_idx}
+            for tank_idx in range(total_tanks):
+                tank_coords = int_frame_data.get(frame_idx, {}).get(tank_idx)
+                if tank_coords: cx, cy = tank_coords; row_dict[f'x{tank_idx}'] = cx; row_dict[f'y{tank_idx}'] = cy
+                else: row_dict[f'x{tank_idx}'] = ''; row_dict[f'y{tank_idx}'] = ''
             output_rows.append(row_dict)
-        
-        output_df = pd.DataFrame(output_rows)
-        output_df.to_csv(output_path, index=False, float_format='%.4f')
+        output_df = pd.DataFrame(output_rows); output_df.to_csv(output_path, index=False, float_format='%.4f')
         return None
     except Exception as e:
         print(traceback.format_exc()); return f"An unexpected error occurred during centroid export: {e}"
@@ -177,31 +159,18 @@ def export_centroid_csv(processed_detections, total_tanks, output_path):
 def export_to_excel_sheets(processed_detections, output_path):
     if not PANDAS_AVAILABLE: return "The 'pandas' and 'openpyxl' libraries are required. Please run: pip install pandas openpyxl"
     try:
-        # ### THE FIX IS HERE ###
-        # Correctly flatten the dictionary of lists into a single list
-        all_dets = [det for frame_dets in processed_detections.values() for det in frame_dets]
-
-        if not all_dets: return "No detections found to export."
-        
-        # Group by track_id if it exists, otherwise fall back to tank_number
-        use_track_id = 'track_id' in all_dets[0]
-        group_key = 'track_id' if use_track_id else 'tank_number'
-        
-        animal_data = defaultdict(list)
+        tank_data = defaultdict(list); all_dets = [det for frame_dets in processed_detections.values() for det in frame_dets]
         for det in all_dets:
-            key = det.get(group_key)
-            if key is not None:
-                animal_data[int(key)].append(det)
-
-        if not animal_data: return "No detections found to group and export."
-        
+            tank_num = det.get('tank_number')
+            if tank_num is not None: tank_data[int(tank_num)].append(det)
+        if not tank_data: return "No detections with tank numbers found to export."
         with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            for animal_id in sorted(animal_data.keys()):
-                sheet_name = f"Track_{animal_id}" if use_track_id else f"Tank_{animal_id}"
-                animal_df = pd.DataFrame(animal_data[animal_id])
+            for tank_num in sorted(tank_data.keys()):
+                sheet_name = f'Tank_{tank_num}'; tank_df = pd.DataFrame(tank_data[tank_num])
                 for col in ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'conf']:
-                    if col in animal_df.columns: animal_df[col] = pd.to_numeric(animal_df[col], errors='coerce')
-                animal_df.to_excel(writer, sheet_name=sheet_name, index=False, float_format='%.4f')
+                    if col in tank_df.columns: tank_df[col] = pd.to_numeric(tank_df[col], errors='coerce')
+                if 'tank_number' in tank_df.columns: tank_df = tank_df.drop(columns=['tank_number'])
+                tank_df.to_excel(writer, sheet_name=sheet_name, index=False, float_format='%.4f')
         return None
     except Exception as e:
         print(traceback.format_exc()); return f"An unexpected error occurred during Excel export: {e}"
