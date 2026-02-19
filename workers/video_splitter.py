@@ -151,134 +151,38 @@ class VideoSplitter(QThread):
                     self.log_message.emit("[ERROR] Chunk duration must be > 0. Skipping.")
                     continue
 
-                num_chunks = int(duration // self.chunk_seconds)
-                if duration % self.chunk_seconds > 1:
-                    num_chunks += 1
-
-                base_name = os.path.splitext(filename)[0]
-                current_output_dir = (
-                    os.path.join(self.output_dir, base_name)
-                    if self.use_subfolders else self.output_dir
-                )
+                num_chunks = int(duration // self.chunk_seconds) + (1 if duration % self.chunk_seconds > 1 else 0)
+                
+                # Split the filename and extension to ensure the output matches the input format
+                base_name, extension = os.path.splitext(filename)
+                current_output_dir = os.path.join(self.output_dir, base_name) if self.use_subfolders else self.output_dir
                 os.makedirs(current_output_dir, exist_ok=True)
-
-                # --------------------------------------
-                # Detect if re-encoding is required
-                # --------------------------------------
-                needs_reencode = self._needs_reencode(video_path)
-
-                if needs_reencode:
-                    self.log_message.emit(
-                        "  ⚠ Detected H.264 High Profile – using safe re-encoding"
-                    )
-
-                # --------------------------------------
-                # Split loop
-                # --------------------------------------
+                
                 for chunk_idx in range(num_chunks):
-                    if not self.is_running:
-                        break
-
+                    if not self.is_running: break
+                    
                     start_time = chunk_idx * self.chunk_seconds
-                    output_file = os.path.join(
-                        current_output_dir,
-                        f"{base_name}_part_{chunk_idx + 1:02d}.mp4"
-                    )
-
-                    self.log_message.emit(
-                        f"  ▶ Splitting Part {chunk_idx + 1}/{num_chunks} -> "
-                        f"{os.path.basename(output_file)}"
-                    )
-
-                    if needs_reencode:
-                        # -------- SAFE RE-ENCODE PATH --------
-                        cmd = [
-                            "ffmpeg",
-                            "-ss", str(start_time),
-                            "-i", video_path,
-                            "-t", str(self.chunk_seconds),
-                            "-map", "0",
-                            "-c:v", "libx264",
-                            "-preset", "veryfast",
-                            "-crf", "18",
-                            "-pix_fmt", "yuv420p",
-                            "-movflags", "+faststart",
-                            "-c:a", "aac",
-                            "-y",
-                            output_file
-                        ]
-
-                        self.process = subprocess.Popen(
-                            cmd,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            startupinfo=startupinfo
-                        )
-
-                        self.process.wait()
-                        self.file_progress.emit(
-                            100, f"Part {chunk_idx + 1}/{num_chunks} Complete"
-                        )
-
-                    else:
-                        # -------- ORIGINAL COPY PATH --------
-                        cmd = [
-                            "ffmpeg",
-                            "-ss", str(start_time),
-                            "-i", video_path,
-                            "-t", str(self.chunk_seconds),
-                            "-c", "copy",
-                            "-y",
-                            "-progress", "pipe:1",
-                            output_file
-                        ]
-
-                        self.process = subprocess.Popen(
-                            cmd,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL,
-                            universal_newlines=True,
-                            startupinfo=startupinfo
-                        )
-
-                        total_frames_in_chunk = self.chunk_seconds * 30  # unchanged logic
-
-                        while self.process.poll() is None:
-                            if not self.is_running:
-                                self.process.terminate()
-                                break
-
-                            line = self.process.stdout.readline()
-                            if "frame=" in line:
-                                try:
-                                    current_frame = int(line.split("=")[-1])
-                                    progress = min(
-                                        100,
-                                        int(current_frame * 100 / total_frames_in_chunk)
-                                    )
-                                    self.file_progress.emit(
-                                        progress,
-                                        f"Part {chunk_idx + 1}/{num_chunks} | "
-                                        f"Frame: {current_frame}"
-                                    )
-                                except ValueError:
-                                    pass
-                            elif "total_size" in line:
-                                self.file_progress.emit(
-                                    100,
-                                    f"Part {chunk_idx + 1}/{num_chunks} Complete"
-                                )
-
-                        self.process.wait()
-
-                    if self.is_running:
-                        self.log_message.emit(
-                            f"  ✓ Saved: {os.path.basename(output_file)}"
-                        )
-                    else:
-                        self.log_message.emit(
-                            f"  ✗ Cancelled: {os.path.basename(output_file)}"
-                        )
+                    # Use the original extension instead of hardcoded .mp4
+                    output_file = os.path.join(current_output_dir, f"{base_name}_part_{chunk_idx+1:02d}{extension}")
+                    self.log_message.emit(f"  ▶ Splitting Part {chunk_idx+1}/{num_chunks} -> {os.path.basename(output_file)}")
+                    
+                    cmd = ["ffmpeg", "-ss", str(start_time), "-i", video_path, "-t", str(self.chunk_seconds), "-c", "copy", output_file, "-y", "-progress", "pipe:1"]
+                    self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, universal_newlines=True, startupinfo=startupinfo)
+                    
+                    total_frames_in_chunk = self.chunk_seconds * 30
+                    while self.process.poll() is None:
+                        if not self.is_running: self.process.terminate(); break
+                        
+                        line = self.process.stdout.readline()
+                        if "total_size" in line:
+                            self.file_progress.emit(100, f"Part {chunk_idx+1}/{num_chunks} Complete")
+                        elif "frame=" in line:
+                            current_frame = int(line.strip().split('=')[-1])
+                            progress = min(100, int(current_frame * 100 / total_frames_in_chunk)) if total_frames_in_chunk > 0 else 0
+                            self.file_progress.emit(progress, f"Part {chunk_idx+1}/{num_chunks} | Frame: {current_frame}")
+                    self.process.wait()
+                    if self.is_running: self.log_message.emit(f"  ✓ Saved: {os.path.basename(output_file)}")
+                    else: self.log_message.emit(f"  ✗ Cancelled split for: {os.path.basename(output_file)}")
 
             except subprocess.CalledProcessError as e:
                 msg = (

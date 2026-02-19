@@ -33,7 +33,7 @@ class BatchProcessDialog(BaseDialog):
         # ### THE FIX IS HERE: All widgets are now assigned to `self` ###
         self.norfair_group = QtWidgets.QGroupBox("Norfair Settings"); norfair_layout = QtWidgets.QFormLayout(self.norfair_group)
         self.distance_fn_combo = QtWidgets.QComboBox(); self.distance_fn_combo.addItems(["euclidean", "iou"])
-        self.distance_threshold_spinbox = CustomDoubleSpinBox(value=100.0, maximum=1000.0, singleStep=5.0, decimals=1, toolTip="Max distance (pixels) an object can move between frames.")
+        self.distance_threshold_spinbox = CustomDoubleSpinBox(value=100.0, maximum=100000.0, singleStep=5.0, decimals=1, toolTip="Max distance (pixels) an object can move between frames.")
         self.hit_counter_max_spinbox = CustomSpinBox(value=15, minimum=1, maximum=100, toolTip="Frames an object can be missed before its track is deleted.")
         self.initialization_delay_spinbox = CustomSpinBox(value=3, minimum=0, maximum=50, toolTip="Frames an object must be seen to initialize a track.")
         self.past_detections_spinbox = CustomSpinBox(value=4, minimum=0, maximum=50, toolTip="Number of past detections to use for Kalman filter smoothing.")

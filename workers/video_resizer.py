@@ -30,16 +30,17 @@ class VideoResizer(QThread):
     time_updated = pyqtSignal(str, str)
     speed_updated = pyqtSignal(float)
 
-    def __init__(self, video_files, output_dir, target_height, parent=None):
+    def __init__(self, video_files, output_dir, target_height, speed_multiplier, parent=None):
         super().__init__(parent)
         self.video_files = video_files
         self.output_dir = output_dir
         self.target_height = target_height
+        self.speed_multiplier = speed_multiplier
         self.is_running = True
         self.process = None
 
     def stop(self):
-        self.log_message.emit("Stopping resize process...")
+        self.log_message.emit("Stopping process...")
         self.is_running = False
         if self.process and self.process.poll() is None:
             self.process.terminate()
@@ -63,7 +64,7 @@ class VideoResizer(QThread):
             
             with open(src, 'rb') as fsrc, open(dst, 'wb') as fdst:
                 while self.is_running:
-                    buf = fsrc.read(1024 * 1024) # Read in 1MB chunks
+                    buf = fsrc.read(1024 * 1024)
                     if not buf:
                         break
                     fdst.write(buf)
@@ -101,71 +102,76 @@ class VideoResizer(QThread):
                 if not cap.isOpened():
                     self.log_message.emit(f"[WARNING] Could not open video. Skipping.")
                     continue
-
                 original_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 original_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
                 cap.release()
                 base_name = os.path.splitext(filename)[0]
-
-                if self.target_height >= original_height:
-                    output_file = os.path.join(self.output_dir, f"{base_name}.mp4")
-                    self.log_message.emit(f"  - Skipping resize, copying original file -> {os.path.basename(output_file)}")
-                    
+                
+                should_resize = self.target_height is not None and self.target_height < original_height
+                should_change_speed = self.speed_multiplier != 1.0
+                
+                if not should_resize and not should_change_speed:
+                    output_file = os.path.join(self.output_dir, filename)
+                    self.log_message.emit(f"  - No processing needed, copying original file -> {os.path.basename(output_file)}")
                     if self._copy_with_progress(video_path, output_file):
                         self.log_message.emit(f"  ✓ Copied original file.")
                     else:
                         self.log_message.emit(f"  ✗ Cancelled copy for: {filename}")
                     continue
 
-                output_file = os.path.join(self.output_dir, f"{base_name}.mp4")
-                self.log_message.emit(f"  ▶ Resizing to {self.target_height}p -> {os.path.basename(output_file)}")
+                suffix = ""
+                if should_resize: suffix += f"_{self.target_height}p"
+                if should_change_speed: suffix += f"_{self.speed_multiplier}x"
+                output_file = os.path.join(self.output_dir, f"{base_name}{suffix}.mp4")
+
+                self.log_message.emit(f"  ▶ Processing video -> {os.path.basename(output_file)}")
+                
+                video_filters = []
+                audio_filters = []
+                if should_resize:
+                    video_filters.append(f"scale=-2:{self.target_height}")
+                if should_change_speed:
+                    video_filters.append(f"setpts={1/self.speed_multiplier}*PTS")
+                    audio_filters.append(f"atempo={self.speed_multiplier}")
+                
+                vf_string = ",".join(video_filters)
+                af_string = ",".join(audio_filters)
+
+                cmd = ["ffmpeg", "-i", video_path]
+                if vf_string: cmd.extend(["-vf", vf_string])
+                if af_string: cmd.extend(["-af", af_string])
                 
                 if use_gpu:
-                    cmd = [
-                        "ffmpeg", "-i", video_path,
-                        "-vf", f"scale=-2:{self.target_height}",
-                        "-c:v", "h264_nvenc", "-preset", "fast", "-cq", "22", 
-                        output_file, "-y"
-                    ]
+                    cmd.extend(["-c:v", "h264_nvenc", "-preset", "fast", "-cq", "22"])
                 else: # CPU fallback
-                    cmd = [
-                        "ffmpeg", "-i", video_path,
-                        "-vf", f"scale=-2:{self.target_height}",
-                        "-c:v", "libx264", "-preset", "fast", "-crf", "22", 
-                        output_file, "-y"
-                    ]
+                    cmd.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "22"])
+                
+                cmd.extend([output_file, "-y"])
                 
                 startupinfo = None
                 if os.name == 'nt':
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
                 self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, startupinfo=startupinfo)
                 
-                file_stopwatch = Stopwatch()
-                file_stopwatch.start()
-                
+                file_stopwatch = Stopwatch(); file_stopwatch.start()
                 frame_regex = re.compile(r"frame=\s*(\d+)")
                 speed_regex = re.compile(r"speed=\s*(\d+\.?\d*)x")
 
                 for line in self.process.stderr:
-                    if not self.is_running:
-                        self.process.terminate()
-                        break
+                    if not self.is_running: self.process.terminate(); break
                     
                     frame_match = frame_regex.search(line)
                     speed_match = speed_regex.search(line)
-
                     if frame_match:
                         current_frame = int(frame_match.group(1))
                         progress = min(100, int(current_frame * 100 / total_frames)) if total_frames > 0 else 0
                         self.file_progress.emit(progress, f"Frame: {current_frame}/{total_frames}")
                         self.time_updated.emit(file_stopwatch.get_elapsed_time(), file_stopwatch.get_etr(current_frame, total_frames))
-
                     if speed_match:
-                        speed_multiplier = float(speed_match.group(1))
-                        processing_fps = original_fps * speed_multiplier
+                        speed_multiplier_val = float(speed_match.group(1))
+                        processing_fps = original_fps * speed_multiplier_val
                         self.speed_updated.emit(processing_fps)
                 
                 return_code = self.process.wait()
@@ -178,14 +184,14 @@ class VideoResizer(QThread):
                     self.file_progress.emit(100, "Complete")
                     self.log_message.emit(f"  ✓ Saved: {os.path.basename(output_file)}")
                 else:
-                    self.log_message.emit(f"  ✗ Cancelled resize for: {os.path.basename(output_file)}")
+                    self.log_message.emit(f"  ✗ Cancelled for: {os.path.basename(output_file)}")
             except Exception as e:
-                self.log_message.emit(f"[ERROR] Failed to resize {filename}: {e}")
+                self.log_message.emit(f"[ERROR] Failed to process {filename}: {e}")
                 self.log_message.emit(traceback.format_exc())
                 continue
         
         if self.is_running:
-            self.log_message.emit("\n--- Video resizing complete! ---")
+            self.log_message.emit("\n--- Video processing complete! ---")
         else:
-            self.log_message.emit("\n--- Video resizing cancelled by user. ---")
+            self.log_message.emit("\n--- Video processing cancelled by user. ---")
         self.finished.emit()

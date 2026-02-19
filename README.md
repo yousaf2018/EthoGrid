@@ -118,6 +118,7 @@ If you wish to run or modify the tool from source code:
     git clone https://github.com/yousaf2018/EthoGrid.git
     cd EthoGrid
     conda create --name ethogrid-env python=3.8 -y
+    conda install -c conda-forge opencv=4.8 pyqt=5.15 qt=5.15 numpy -y
     conda activate ethogrid-env
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
     
@@ -214,6 +215,7 @@ This application was developed in the **[Laboratory of Professor Chung-Der Hsiao
 
 
 Distributed under the MIT License. See the `LICENSE` file for more information.
+
 
 
 
