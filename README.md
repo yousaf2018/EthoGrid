@@ -117,17 +117,171 @@ If you wish to run or modify the tool from source code:
     # Clone the repository
     git clone https://github.com/yousaf2018/EthoGrid.git
     cd EthoGrid
-    conda create --name ethogrid-env python=3.8 -y
-    conda install -c conda-forge opencv=4.8 pyqt=5.15 qt=5.15 numpy -y
-    conda activate ethogrid-env
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    
-    # Install dependencies
-    pip install -r requirements.txt
+    ```
+    # EthoGrid Installation Guide (Windows & Ubuntu)
 
-    # Run the application
+    This guide installs EthoGrid in a clean Conda environment using compatible Qt, OpenCV, and PyQt builds to avoid common library conflicts (especially Qt version mismatches).
+
+    > ⚠ Important: Always install GUI libraries from **conda-forge**, not pip.
+
+    ---
+
+    ## ✅ Requirements
+
+    Before starting, install:
+
+    - **Anaconda** or **Miniconda**
+    - Python command line access
+
+    Download:
+
+    - Anaconda: https://www.anaconda.com/download
+    - Miniconda: https://docs.conda.io/en/latest/miniconda.html
+
+    ---
+
+    ## 🖥 Windows Users
+
+    Open **Anaconda Prompt**.
+
+    ## 🐧 Ubuntu/Linux Users
+
+    Open a **terminal**.
+
+    ---
+
+    # ✅ Step 1 — Create a fresh environment
+
+    Deactivate any active environment, remove the old EthoGrid environment (if it exists), and create a new one.
+
+    ```bash
+    conda deactivate
+    conda remove -n ethogrid-env --all -y
+    conda create -n ethogrid-env python=3.10 -y
+    conda activate ethogrid-env
+    ```
+
+    ### Why Python 3.10?
+
+    Python 3.10 ensures compatibility with:
+
+    - Ultralytics YOLO
+    - PyQt
+    - OpenCV
+    - Modern scientific libraries
+
+    ---
+
+    # ✅ Step 2 — Install OpenCV + PyQt + Qt (conda-forge)
+
+    Install all GUI/scientific libraries from **conda-forge** to guarantee matching Qt versions.
+
+    ```bash
+    conda install -c conda-forge \
+    opencv pyqt qt numpy pandas matplotlib seaborn pillow scipy openpyxl -y
+    ```
+
+    ### Why this matters
+
+    This prevents:
+
+    ```
+    Cannot mix incompatible Qt library
+    ```
+
+    All Qt dependencies will match correctly.
+
+    ---
+
+    # ✅ Step 3 — Install pip-only packages
+
+    Now install packages that are not provided through Conda.
+
+    ```bash
+    pip install ultralytics pyinstaller pyinstaller-hooks-contrib filterpy norfair
+    ```
+
+    ### ⚠ Important rule
+
+    DO NOT install:
+
+    ```
+    opencv-python
+    PyQt5
+    ```
+
+    from pip — they will break Qt compatibility.
+
+    ---
+
+    # ✅ Step 4 — Run EthoGrid
+
+    Navigate to your EthoGrid folder and start the application:
+
+    ```bash
     python main.py
     ```
+
+    If everything installed correctly, the GUI should launch without Qt errors.
+
+    ---
+
+    ## 🔧 Troubleshooting
+
+    ### Qt mismatch error
+
+    If you ever see:
+
+    ```
+    Cannot mix incompatible Qt library
+    ```
+
+    Solution:
+
+    ```
+    conda remove -n ethogrid-env --all
+    ```
+
+    Then repeat installation from Step 1.
+
+    ---
+
+    ### Package conflicts
+
+    Always install GUI libraries using:
+
+    ```
+    conda-forge
+    ```
+
+    Never mix pip GUI packages with Conda Qt packages.
+
+    ---
+
+    ## ✅ Recommended workflow
+
+    Each time you want to use EthoGrid:
+
+    ```bash
+    conda activate ethogrid-env
+    python main.py
+    ```
+
+    ---
+
+    ## 🎯 Installation complete
+
+    You now have a clean, stable EthoGrid environment compatible with:
+
+    - Windows
+    - Ubuntu
+    - Conda Qt ecosystem
+    - Latest Ultralytics YOLO
+
+    ---
+
+    Happy experimenting 🚀
+
 3.  **Developer Documentation**: For a full breakdown of the code architecture, see the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 ---

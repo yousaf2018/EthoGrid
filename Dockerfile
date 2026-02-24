@@ -1,29 +1,50 @@
-# Use NVIDIA CUDA base for GPU + Ultralytics support
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# ---------- Base image with Conda ----------
+FROM continuumio/miniconda3:latest
 
-# Avoid interactive prompts
+# Avoid prompts
 ENV DEBIAN_FRONTEND=noninteractive
-ENV QT_X11_NO_MITSHM=1
 
-# Install system dependencies for PyQt5 + OpenCV + GUI
-# Added Acquire::Check-Date=false to bypass timestamp issues inside Docker/WSL2
-RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update && \
-    apt-get install -y --no-install-recommends \
-    git python3 python3-pip python3-dev \
-    libgl1-mesa-glx libglib2.0-0 \
-    libxkbcommon-x11-0 \
+# Install GUI dependencies (Qt/X11)
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    libxext6 \
+    libsm6 \
+    libxrender1 \
     x11-apps \
     && rm -rf /var/lib/apt/lists/*
 
-# Set python alias
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+# ---------- Create environment ----------
+RUN conda create -n ethogrid-env python=3.10 -y
 
-# Clone your GitHub repo into /app
+# Use conda environment
+SHELL ["conda", "run", "-n", "ethogrid-env", "/bin/bash", "-c"]
+
+# Install conda packages (Qt-safe stack)
+RUN conda install -c conda-forge \
+    opencv \
+    pyqt \
+    qt \
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    pillow \
+    scipy \
+    openpyxl \
+    -y
+
+# Install pip packages
+RUN pip install \
+    ultralytics \
+    filterpy \
+    nofair \
+    pyinstaller \
+    pyinstaller-hooks-contrib
+
+# ---------- Copy EthoGrid app ----------
 WORKDIR /app
-RUN git clone https://github.com/yousaf2018/EthoGrid.git .
+COPY . /app
 
-# Install Python dependencies
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Default command: run your PyQt5 GUI app
-CMD ["python", "main.py"]
+# ---------- Default command ----------
+CMD ["conda", "run", "--no-capture-output", "-n", "ethogrid-env", "python", "main.py"]

@@ -1,87 +1,81 @@
-import os
 import subprocess
-import sys
 import platform
+import sys
 
-# -------------------------------
-# Configurable variables
-# -------------------------------
-ENV_NAME = "ethogrid-env-test"  # change if you want a different env name
-PYTHON_VERSION = "3.10"
-CONDA_CHANNEL = "conda-forge"
 
-# Pip-only packages
-PIP_PACKAGES = [
-    "ultralytics",
-    "pyinstaller",
-    "pyinstaller-hooks-contrib"
-]
+ENV_NAME = "ethogrid-env-test"
 
-# Conda packages (all from conda-forge)
-CONDA_PACKAGES = [
-    "opencv",
-    "pyqt",
-    "qt",
-    "numpy",
-    "pandas",
-    "matplotlib",
-    "seaborn",
-    "pillow",
-    "scipy",
-    "openpyxl"
-]
 
-# -------------------------------
-# Helper function to run shell commands
-# -------------------------------
 def run(cmd):
-    print(f"\nRunning: {cmd}")
+    print(f"\n>>> Running: {cmd}\n")
     result = subprocess.run(cmd, shell=True)
     if result.returncode != 0:
-        print(f"❌ Command failed: {cmd}")
+        print("\n❌ Command failed. Stopping installer.")
+        sys.exit(result.returncode)
+
+
+def check_conda():
+    try:
+        subprocess.run("conda --version", shell=True, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        print("❌ Conda not found. Please install Anaconda/Miniconda first.")
         sys.exit(1)
 
-# -------------------------------
-# Detect OS
-# -------------------------------
-OS_NAME = platform.system()
-print(f"Detected OS: {OS_NAME}")
-print("Make sure current Conda environment is deactivated before running this script.")
 
-# -------------------------------
-# Check if environment exists
-# -------------------------------
-print(f"\nChecking if environment '{ENV_NAME}' exists...")
-envs_list = subprocess.run("conda env list", shell=True, capture_output=True, text=True).stdout
-if ENV_NAME in envs_list:
-    print(f"Environment '{ENV_NAME}' exists. Removing it...")
+def main():
+
+    os_name = platform.system()
+    print("=" * 60)
+    print("EthoGrid Automatic Installer")
+    print(f"Detected OS: {os_name}")
+    print("=" * 60)
+
+    check_conda()
+
+    print("\n⚠ IMPORTANT:")
+    print("Deactivate any active Conda environment before continuing.")
+    print("Run this if needed:")
+    print("   conda deactivate\n")
+
+    input("Press ENTER to continue...")
+
+    # STEP 1 — Environment setup
+    print("\n✅ STEP 1 — Creating fresh environment")
+
     run(f"conda remove -n {ENV_NAME} --all -y")
-else:
-    print(f"Environment '{ENV_NAME}' does not exist. No need to remove.")
+    run(f"conda create -n {ENV_NAME} python=3.10 -y")
 
-# -------------------------------
-# Create new environment
-# -------------------------------
-print(f"\nCreating new environment '{ENV_NAME}' with Python {PYTHON_VERSION}...")
-run(f"conda create -n {ENV_NAME} python={PYTHON_VERSION} -y")
+    # STEP 2 — Conda packages
+    print("\n✅ STEP 2 — Installing Qt/OpenCV stack")
 
-# -------------------------------
-# Install Conda packages
-# -------------------------------
-conda_pkg_str = " ".join(CONDA_PACKAGES)
-print(f"\nInstalling Conda packages: {conda_pkg_str} ...")
-run(f"conda install -n {ENV_NAME} -c {CONDA_CHANNEL} {conda_pkg_str} -y")
+    run(
+        f'conda install -n {ENV_NAME} -c conda-forge '
+        'opencv pyqt qt numpy pandas matplotlib seaborn pillow scipy openpyxl -y'
+    )
 
-# -------------------------------
-# Install pip-only packages
-# -------------------------------
-pip_pkg_str = " ".join(PIP_PACKAGES)
-print(f"\nInstalling pip-only packages: {pip_pkg_str} ...")
-run(f"conda run -n {ENV_NAME} pip install {pip_pkg_str}")
+    # STEP 3 — Pip packages
+    print("\n✅ STEP 3 — Installing pip packages")
 
-# -------------------------------
-# Done
-# -------------------------------
-print("\n✅ Setup complete!")
-print(f"To activate the environment, run:\n  conda activate {ENV_NAME}")
-print("Then run your project:\n  python main.py")
+    if os_name == "Windows":
+        activate_cmd = f"conda activate {ENV_NAME} && "
+    else:
+        activate_cmd = f"source $(conda info --base)/etc/profile.d/conda.sh && conda activate {ENV_NAME} && "
+
+    run(
+        activate_cmd +
+        "pip install ultralytics pyinstaller pyinstaller-hooks-contrib filterpy norfair"
+    )
+
+    # DONE
+    print("\n" + "=" * 60)
+    print("🎉 INSTALLATION COMPLETE!")
+    print("=" * 60)
+
+    print("\nTo run EthoGrid:")
+    print(f"conda activate {ENV_NAME}")
+    print("python main.py\n")
+
+
+if __name__ == "__main__":
+    main()
