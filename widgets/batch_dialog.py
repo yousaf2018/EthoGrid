@@ -55,9 +55,11 @@ class BatchProcessDialog(BaseDialog):
         self.time_gap_spinbox = CustomDoubleSpinBox(toolTip="Max time gap in seconds for trajectories.", value=1.0, minimum=0.1, maximum=99999.0, singleStep=0.1)
         self.save_video_checkbox = QtWidgets.QCheckBox("Save Annotated Video"); self.save_video_checkbox.setChecked(True); self.show_overlays_checkbox = QtWidgets.QCheckBox("Show Overlays (Legend/Timeline)"); self.show_overlays_checkbox.setChecked(True)
         self.save_csv_checkbox = QtWidgets.QCheckBox("Save Enriched CSV"); self.save_csv_checkbox.setChecked(True); self.save_centroid_csv_checkbox = QtWidgets.QCheckBox("Save Centroid CSV (Wide)"); self.save_centroid_csv_checkbox.setChecked(True)
+        
+        # ### UPDATED Checkboxes ###
         self.save_excel_track_checkbox = QtWidgets.QCheckBox("Save Excel (by Track)"); self.save_excel_track_checkbox.setChecked(True)
-        # ### THE FIX IS HERE ###
         self.save_excel_tank_checkbox = QtWidgets.QCheckBox("Save Excel (by Tank)"); self.save_excel_tank_checkbox.setChecked(True)
+        
         self.save_trajectory_img_checkbox = QtWidgets.QCheckBox("Save Trajectory Image"); self.save_trajectory_img_checkbox.setChecked(True)
         self.save_heatmap_img_checkbox = QtWidgets.QCheckBox("Save Heatmap Image"); self.save_heatmap_img_checkbox.setChecked(True)
         self.start_btn = QtWidgets.QPushButton("Start Processing"); self.cancel_btn = QtWidgets.QPushButton("Cancel")
@@ -72,12 +74,19 @@ class BatchProcessDialog(BaseDialog):
         form_layout.addWidget(QtWidgets.QLabel("CSV Detections Folder (Optional):"), 4, 0); form_layout.addWidget(self.csv_dir_line_edit, 5, 0); form_layout.addWidget(self.browse_csv_dir_btn, 5, 1)
         form_layout.addWidget(QtWidgets.QLabel("Output Directory:"), 6, 0); form_layout.addWidget(self.output_dir_line_edit, 7, 0); form_layout.addWidget(self.browse_output_btn, 7, 1)
         
-        tracking_group = QtWidgets.QGroupBox("Tracking Options"); tracking_layout = QtWidgets.QVBoxLayout(tracking_group)
+        tracking_group = QtWidgets.QGroupBox("Tracking Options")
+        tracking_layout = QtWidgets.QVBoxLayout(tracking_group)
+        
         tracking_options_form = QtWidgets.QFormLayout()
         tracking_options_form.addRow("Method:", self.tracking_method_combo)
         tracking_options_form.addRow("Max Animals to Track:", self.max_animals_spinbox)
         tracking_options_form.addRow(self.auto_stitch_checkbox)
-        tracking_layout.addLayout(tracking_options_form); tracking_layout.addWidget(self.norfair_group); tracking_layout.addWidget(self.reid_group); form_layout.addWidget(tracking_group, 8, 0, 1, 3)
+        
+        tracking_layout.addLayout(tracking_options_form)
+        tracking_layout.addWidget(self.norfair_group)
+        tracking_layout.addWidget(self.reid_group)
+        
+        form_layout.addWidget(tracking_group, 8, 0, 1, 3)
 
         img_export_group = QtWidgets.QGroupBox("Image Export Options"); img_export_layout = QtWidgets.QFormLayout(img_export_group)
         img_export_layout.addRow("Sample Rate (every Nth frame):", self.frame_sample_rate_spinbox); form_layout.addWidget(img_export_group, 9, 0, 1, 3)
@@ -207,6 +216,8 @@ class BatchProcessDialog(BaseDialog):
         elif tracking_method in ["BoT-SORT", "StrongSORT"]:
              tracker_params = {'model_weights': self.reid_model_edit.text(), 'max_dist': self.strongsort_max_dist.value(), 'max_age': self.strongsort_max_age.value(), 'n_init': self.strongsort_n_init.value()}
         
+        # ### THE FIX IS HERE ###
+        # Updated constructor call with correct parameters
         self.batch_worker = BatchProcessor(
             self.video_files, self.settings_line_edit.text(), self.output_dir_line_edit.text(), 
             csv_dir=self.csv_dir_line_edit.text(), tracking_method=tracking_method, 
@@ -215,9 +226,9 @@ class BatchProcessDialog(BaseDialog):
             frame_sample_rate=self.frame_sample_rate_spinbox.value(),
             auto_stitch=self.auto_stitch_checkbox.isChecked(),
             save_video=self.save_video_checkbox.isChecked(), save_csv=self.save_csv_checkbox.isChecked(), 
-            save_centroid_csv=self.save_centroid_csv_checkbox.isChecked(),
-            save_excel_track=self.save_excel_track_checkbox.isChecked(), # New Param
-            save_excel_tank=self.save_excel_tank_checkbox.isChecked(),   # New Param
+            save_centroid_csv=self.save_centroid_csv_checkbox.isChecked(), 
+            save_excel_track=self.save_excel_track_checkbox.isChecked(), # Correct
+            save_excel_tank=self.save_excel_tank_checkbox.isChecked(),   # Correct
             save_trajectory_img=self.save_trajectory_img_checkbox.isChecked(), save_heatmap_img=self.save_heatmap_img_checkbox.isChecked(), 
             time_gap_seconds=self.time_gap_spinbox.value(), draw_overlays=self.show_overlays_checkbox.isChecked()
         )
