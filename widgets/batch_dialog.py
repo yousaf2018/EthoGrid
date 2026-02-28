@@ -34,21 +34,27 @@ class BatchProcessDialog(BaseDialog):
         
         self.norfair_group = QtWidgets.QGroupBox("Norfair Settings"); norfair_layout = QtWidgets.QFormLayout(self.norfair_group)
         self.norfair_distance_fn_combo = QtWidgets.QComboBox(); self.norfair_distance_fn_combo.addItems(["euclidean", "iou"])
-        self.norfair_dist_thresh = CustomDoubleSpinBox(value=100.0, maximum=1000.0, singleStep=5.0, decimals=1, toolTip="Max distance (pixels) an object can move between frames.")
-        self.norfair_hit_counter = CustomSpinBox(value=15, minimum=1, maximum=100, toolTip="Frames an object can be missed before its track is deleted.")
-        self.norfair_init_delay = CustomSpinBox(value=3, minimum=0, maximum=50, toolTip="Frames an object must be seen to initialize a track.")
-        self.norfair_past_detections = CustomSpinBox(value=4, minimum=0, maximum=50, toolTip="Number of past detections to use for Kalman filter smoothing.")
-        self.calculate_dist_btn = QtWidgets.QPushButton("Calculate Optimal"); dist_layout = QtWidgets.QHBoxLayout(); dist_layout.addWidget(self.norfair_dist_thresh, 1); dist_layout.addWidget(self.calculate_dist_btn)
-        norfair_layout.addRow("Distance Function:", self.norfair_distance_fn_combo); norfair_layout.addRow("Distance Threshold:", dist_layout)
-        norfair_layout.addRow("Hit Counter Max:", self.norfair_hit_counter); norfair_layout.addRow("Initialization Delay:", self.norfair_init_delay)
+        
+        self.norfair_dist_thresh = CustomDoubleSpinBox(value=5.0, maximum=50000.0, singleStep=0.5, decimals=1)
+        self.norfair_dist_thresh.setToolTip("Max distance in Centimeters an object can move between frames.")
+        self.norfair_hit_counter = CustomSpinBox(value=15, minimum=1, maximum=100)
+        self.norfair_init_delay = CustomSpinBox(value=3, minimum=0, maximum=50)
+        self.norfair_past_detections = CustomSpinBox(value=4, minimum=0, maximum=50)
+        self.calculate_dist_btn = QtWidgets.QPushButton("Calculate Optimal (Auto)")
+        dist_layout = QtWidgets.QHBoxLayout(); dist_layout.addWidget(self.norfair_dist_thresh, 1); dist_layout.addWidget(self.calculate_dist_btn)
+        
+        norfair_layout.addRow("Distance Function:", self.norfair_distance_fn_combo)
+        norfair_layout.addRow("Distance Threshold (cm):", dist_layout)
+        norfair_layout.addRow("Hit Counter Max:", self.norfair_hit_counter)
+        norfair_layout.addRow("Initialization Delay:", self.norfair_init_delay)
         norfair_layout.addRow("Past Detections Length:", self.norfair_past_detections)
 
         self.reid_group = QtWidgets.QGroupBox("Re-ID Tracker Settings (StrongSORT, BoTSORT)"); reid_layout = QtWidgets.QFormLayout(self.reid_group)
         self.reid_model_edit = QtWidgets.QLineEdit(); self.reid_model_edit.setPlaceholderText("Browse for Re-ID model weights (.pt)")
         self.browse_reid_model_btn = QtWidgets.QPushButton("Browse...")
-        self.strongsort_max_dist = CustomDoubleSpinBox(value=0.2, maximum=1.0, singleStep=0.05, decimals=2, toolTip="Max cosine distance for appearance matching.")
-        self.strongsort_max_age = CustomSpinBox(value=30, minimum=1, maximum=300, toolTip="Max frames a track can be lost.")
-        self.strongsort_n_init = CustomSpinBox(value=3, minimum=1, maximum=20, toolTip="Frames a track must be seen to be confirmed.")
+        self.strongsort_max_dist = CustomDoubleSpinBox(value=0.2, maximum=1.0, singleStep=0.05, decimals=2)
+        self.strongsort_max_age = CustomSpinBox(value=30, minimum=1, maximum=300)
+        self.strongsort_n_init = CustomSpinBox(value=3, minimum=1, maximum=20)
         reid_layout.addRow("Re-ID Model:", self.create_hbox(self.reid_model_edit, self.browse_reid_model_btn)); reid_layout.addRow("Max Distance (Cosine):", self.strongsort_max_dist); reid_layout.addRow("Max Age (frames):", self.strongsort_max_age); reid_layout.addRow("Confirmation Frames (n_init):", self.strongsort_n_init)
         
         self.frame_sample_rate_spinbox = CustomSpinBox(toolTip="Use data from every Nth frame for image exports.", value=30, minimum=1, maximum=10000)
@@ -56,10 +62,10 @@ class BatchProcessDialog(BaseDialog):
         self.save_video_checkbox = QtWidgets.QCheckBox("Save Annotated Video"); self.save_video_checkbox.setChecked(True); self.show_overlays_checkbox = QtWidgets.QCheckBox("Show Overlays (Legend/Timeline)"); self.show_overlays_checkbox.setChecked(True)
         self.save_csv_checkbox = QtWidgets.QCheckBox("Save Enriched CSV"); self.save_csv_checkbox.setChecked(True); self.save_centroid_csv_checkbox = QtWidgets.QCheckBox("Save Centroid CSV (Wide)"); self.save_centroid_csv_checkbox.setChecked(True)
         
-        # ### UPDATED Checkboxes ###
         self.save_excel_track_checkbox = QtWidgets.QCheckBox("Save Excel (by Track)"); self.save_excel_track_checkbox.setChecked(True)
         self.save_excel_tank_checkbox = QtWidgets.QCheckBox("Save Excel (by Tank)"); self.save_excel_tank_checkbox.setChecked(True)
-        
+        self.draw_polygons_checkbox = QtWidgets.QCheckBox("Draw Segmentation Polygons"); self.draw_polygons_checkbox.setChecked(True)
+
         self.save_trajectory_img_checkbox = QtWidgets.QCheckBox("Save Trajectory Image"); self.save_trajectory_img_checkbox.setChecked(True)
         self.save_heatmap_img_checkbox = QtWidgets.QCheckBox("Save Heatmap Image"); self.save_heatmap_img_checkbox.setChecked(True)
         self.start_btn = QtWidgets.QPushButton("Start Processing"); self.cancel_btn = QtWidgets.QPushButton("Cancel")
@@ -76,23 +82,21 @@ class BatchProcessDialog(BaseDialog):
         
         tracking_group = QtWidgets.QGroupBox("Tracking Options")
         tracking_layout = QtWidgets.QVBoxLayout(tracking_group)
-        
         tracking_options_form = QtWidgets.QFormLayout()
         tracking_options_form.addRow("Method:", self.tracking_method_combo)
         tracking_options_form.addRow("Max Animals to Track:", self.max_animals_spinbox)
         tracking_options_form.addRow(self.auto_stitch_checkbox)
-        
         tracking_layout.addLayout(tracking_options_form)
         tracking_layout.addWidget(self.norfair_group)
         tracking_layout.addWidget(self.reid_group)
-        
         form_layout.addWidget(tracking_group, 8, 0, 1, 3)
 
         img_export_group = QtWidgets.QGroupBox("Image Export Options"); img_export_layout = QtWidgets.QFormLayout(img_export_group)
         img_export_layout.addRow("Sample Rate (every Nth frame):", self.frame_sample_rate_spinbox); form_layout.addWidget(img_export_group, 9, 0, 1, 3)
         
         output_options_group = QtWidgets.QGroupBox("Output Files"); output_options_layout = QtWidgets.QVBoxLayout(output_options_group)
-        output_options_layout.addWidget(self.save_video_checkbox); output_options_layout.addWidget(self.show_overlays_checkbox); output_options_layout.addWidget(self.save_csv_checkbox); output_options_layout.addWidget(self.save_centroid_csv_checkbox)
+        output_options_layout.addWidget(self.save_video_checkbox); output_options_layout.addWidget(self.draw_polygons_checkbox); output_options_layout.addWidget(self.show_overlays_checkbox)
+        output_options_layout.addWidget(self.save_csv_checkbox); output_options_layout.addWidget(self.save_centroid_csv_checkbox)
         output_options_layout.addWidget(self.save_excel_track_checkbox); output_options_layout.addWidget(self.save_excel_tank_checkbox)
         output_options_layout.addWidget(self.save_heatmap_img_checkbox)
         traj_layout = QtWidgets.QHBoxLayout(); traj_layout.addWidget(self.save_trajectory_img_checkbox); traj_layout.addStretch(); traj_layout.addWidget(QtWidgets.QLabel("Max Time Gap (s):")); traj_layout.addWidget(self.time_gap_spinbox)
@@ -123,7 +127,7 @@ class BatchProcessDialog(BaseDialog):
         self.auto_stitch_checkbox.setEnabled(method != "Confidence Filter")
         
     def on_save_video_changed(self, state=None):
-        is_checked = self.save_video_checkbox.isChecked(); self.show_overlays_checkbox.setEnabled(is_checked)
+        is_checked = self.save_video_checkbox.isChecked(); self.show_overlays_checkbox.setEnabled(is_checked); self.draw_polygons_checkbox.setEnabled(is_checked)
         if not is_checked: self.show_overlays_checkbox.setChecked(False)
             
     def on_save_trajectory_changed(self, state=None):
@@ -208,7 +212,7 @@ class BatchProcessDialog(BaseDialog):
         if tracking_method == "Norfair":
             tracker_params = {
                 'distance_function': self.norfair_distance_fn_combo.currentText(),
-                'distance_threshold': self.norfair_dist_thresh.value(),
+                'distance_threshold': self.norfair_dist_thresh.value(), # This value is passed as-is (user enters cm, worker converts)
                 'hit_counter_max': self.norfair_hit_counter.value(),
                 'initialization_delay': self.norfair_init_delay.value(),
                 'past_detections_length': self.norfair_past_detections.value()
@@ -216,8 +220,6 @@ class BatchProcessDialog(BaseDialog):
         elif tracking_method in ["BoT-SORT", "StrongSORT"]:
              tracker_params = {'model_weights': self.reid_model_edit.text(), 'max_dist': self.strongsort_max_dist.value(), 'max_age': self.strongsort_max_age.value(), 'n_init': self.strongsort_n_init.value()}
         
-        # ### THE FIX IS HERE ###
-        # Updated constructor call with correct parameters
         self.batch_worker = BatchProcessor(
             self.video_files, self.settings_line_edit.text(), self.output_dir_line_edit.text(), 
             csv_dir=self.csv_dir_line_edit.text(), tracking_method=tracking_method, 
@@ -227,8 +229,8 @@ class BatchProcessDialog(BaseDialog):
             auto_stitch=self.auto_stitch_checkbox.isChecked(),
             save_video=self.save_video_checkbox.isChecked(), save_csv=self.save_csv_checkbox.isChecked(), 
             save_centroid_csv=self.save_centroid_csv_checkbox.isChecked(), 
-            save_excel_track=self.save_excel_track_checkbox.isChecked(), # Correct
-            save_excel_tank=self.save_excel_tank_checkbox.isChecked(),   # Correct
+            save_excel_track=self.save_excel_track_checkbox.isChecked(), 
+            save_excel_tank=self.save_excel_tank_checkbox.isChecked(),
             save_trajectory_img=self.save_trajectory_img_checkbox.isChecked(), save_heatmap_img=self.save_heatmap_img_checkbox.isChecked(), 
             time_gap_seconds=self.time_gap_spinbox.value(), draw_overlays=self.show_overlays_checkbox.isChecked()
         )
@@ -257,4 +259,4 @@ class BatchProcessDialog(BaseDialog):
     def closeEvent(self, event):
         if self.batch_thread and self.batch_thread.isRunning():
             self.cancel_processing(); self.batch_thread.quit(); self.batch_thread.wait()
-        event.accept()
+        event.accept()      

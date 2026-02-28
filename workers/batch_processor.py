@@ -33,6 +33,7 @@ class BatchProcessor(QThread):
     time_updated = pyqtSignal(str, str)
     speed_updated = pyqtSignal(float)
 
+    # ### THE FIX IS HERE: Correct argument list including draw_overlays ###
     def __init__(self, video_files, settings_file, output_dir, csv_dir, 
                  tracking_method, tracker_params, max_animals_per_tank,
                  frame_sample_rate, auto_stitch, save_video, save_csv, save_centroid_csv, 
@@ -74,12 +75,11 @@ class BatchProcessor(QThread):
                     speeds.extend(dist)
             avg_speed = np.mean(speeds) if speeds else 20
 
-        # Auto-calculated parameters
         params = {
             'distance_function': "euclidean",
             'distance_threshold': avg_speed * 3.0,
             'hit_counter_max': int(video_fps / 2) if video_fps > 0 else 15,
-            'initialization_delay': 1, # Favor immediate tracking
+            'initialization_delay': 3,
             'past_detections_length': 4
         }
         self.log_message.emit(f"  - Auto-calculated Norfair params: {params}")
@@ -158,7 +158,10 @@ class BatchProcessor(QThread):
         new_detections = defaultdict(list)
         for _, row in df.iterrows():
             d = row.to_dict(); 
-            if 'frame_idx' in d: f_idx = int(d['frame_idx']); new_detections[f_idx].append(d)
+            if 'frame_idx' in d:
+                # Do NOT pop frame_idx to ensure it stays available for export functions
+                f_idx = int(d['frame_idx']) 
+                new_detections[f_idx].append(d)
         return new_detections
 
     def run(self):
@@ -173,7 +176,6 @@ class BatchProcessor(QThread):
             if not BOXMOT_AVAILABLE: self.log_message.emit("[ERROR] 'boxmot' library not found. Please run 'pip install boxmot'. Aborting."); self.finished.emit(); return
             if self.tracking_method in ['StrongSORT', 'BoTSORT'] and not os.path.exists(self.tracker_params.get('model_weights', '')): self.log_message.emit(f"[ERROR] Re-ID model not found: {self.tracker_params.get('model_weights', '')}"); self.finished.emit(); return
         
-        # ### CRITICAL FIX: Convert Norfair distance from CM to Pixels ###
         if self.tracking_method == "Norfair" and 'distance_threshold' in self.tracker_params:
             cm_thresh = self.tracker_params['distance_threshold']
             px_thresh = cm_thresh * conversion_rate
@@ -202,26 +204,23 @@ class BatchProcessor(QThread):
                             except (ValueError, TypeError): pass
                         raw_detections[frame_idx].append(row)
                 
-                self.log_message.emit("Assigning detections to tanks and pre-filtering...")
+                self.log_message.emit("Assigning raw detections to tanks...")
                 cap = cv2.VideoCapture(video_path);
                 if not cap.isOpened(): self.log_message.emit(f"[ERROR] Could not open video."); continue
                 video_w, video_h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)); video_fps, total_frames = cap.get(cv2.CAP_PROP_FPS) or 30.0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)); video_size = (video_w, video_h)
                 final_transform = QTransform(); final_transform.translate(video_w * transform_settings['center_x'], video_h * transform_settings['center_y']); final_transform.rotate(transform_settings['angle']); final_transform.scale(transform_settings['scale_x'], transform_settings['scale_y']); final_transform.translate(-video_w / 2, -video_h / 2)
                 inverse_transform, _ = final_transform.inverted()
                 
-                # ### CRITICAL FIX: Spatial & Top-K Filtering BEFORE Tracking ###
                 clean_raw_detections = defaultdict(list)
                 for frame_idx, dets in raw_detections.items():
                     valid_dets_in_frame = []
                     for det in dets:
                         if 'cx' not in det or det.get('cx') is None: det['cx'], det['cy'] = (det.get("x1", 0) + det.get("x2", 0)) / 2.0, (det.get("y1", 0) + det.get("y2", 0)) / 2.0
-                        # 1. Filter: Must be inside a tank
                         tank_num = self._get_tank_for_point(det['cx'], det['cy'], video_w, video_h, grid_settings['cols'], grid_settings['rows'], inverse_transform)
                         if tank_num is not None:
                             det['tank_number'] = tank_num
                             valid_dets_in_frame.append(det)
                     
-                    # 2. Filter: Keep only top K by confidence per tank
                     dets_by_tank = defaultdict(list)
                     for det in valid_dets_in_frame: dets_by_tank[det['tank_number']].append(det)
                     
@@ -229,10 +228,8 @@ class BatchProcessor(QThread):
                     for tank_num, tank_dets in dets_by_tank.items():
                         tank_dets.sort(key=lambda x: x.get('conf', 0.0), reverse=True)
                         final_frame_dets.extend(tank_dets[:self.max_animals_per_tank])
-                    
                     clean_raw_detections[frame_idx] = final_frame_dets
                 
-                # Replace raw detections with clean ones for the tracker
                 raw_detections = clean_raw_detections
 
                 detections = {}
@@ -252,7 +249,6 @@ class BatchProcessor(QThread):
                             dets_in_tank = dets_by_tank.get(tank_num, [])
                             detections_for_tracker = np.array([[d['x1'], d['y1'], d['x2'], d['y2'], d.get('conf', 1.0), 0] for d in dets_in_tank]) if dets_in_tank else np.empty((0, 6))
                             tracked_objects = trackers[tank_num].update(detections_for_tracker, frame)
-                            # BoxMOT already limits somewhat, but we strictly filtered inputs.
                             for obj in tracked_objects:
                                 x1, y1, x2, y2, track_id = obj[:5]; cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
                                 original_det = get_original_det([x1, y1, x2, y2], dets_in_tank)
@@ -272,7 +268,6 @@ class BatchProcessor(QThread):
                         for tank_num in range(1, num_tanks + 1):
                             dets_in_tank = dets_by_tank.get(tank_num, [])
                             norfair_dets = to_norfair(dets_in_tank)
-                            # Norfair update. Because we filtered inputs to top-K, Norfair will focus on those.
                             tracked_objects = trackers[tank_num].update(detections=norfair_dets)
                             for obj in tracked_objects:
                                 est_points = obj.estimate.flatten(); cx, cy = est_points[0], est_points[1]
@@ -281,11 +276,9 @@ class BatchProcessor(QThread):
                     detections = tracked_detections; self.log_message.emit("Norfair tracking complete.")
                 
                 else: # Confidence Filter
-                    # We just use the already cleaned and filtered detections
                     detections = raw_detections; self.log_message.emit("Using filtered raw detections (no tracking).")
                 
-                # ### CRITICAL FIX: Universal Auto-Stitch Application ###
-                # If the user checked auto-stitch, we apply it regardless of method to enforce clean IDs
+                # Apply auto-stitch if enabled
                 if self.auto_stitch:
                     detections = self._force_stitch_to_max(detections)
                 
@@ -296,7 +289,7 @@ class BatchProcessor(QThread):
                 
                 cap.release()
 
-                # ... (Export logic unchanged)
+                # ... (Export logic is unchanged)
                 if self.save_csv:
                     output_csv_path = os.path.join(self.output_dir, f"{base_name}_with_tanks.csv"); self.log_message.emit(f"Saving enriched CSV to: {os.path.basename(output_csv_path)}")
                     all_processed_detections = [det for frame, dets in sorted(detections.items()) for det in dets]
