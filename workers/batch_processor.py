@@ -236,10 +236,11 @@ class BatchProcessor(QThread):
                 num_tanks = grid_settings['cols'] * grid_settings['rows']
                 
                 if is_boxmot_tracker:
-                    self.log_message.emit(f"Applying {self.tracking_method} tracking...")
+                    # self.log_message.emit(f"Applying {self.tracking_method} tracking...")
                     trackers = {i: create_tracker(self.tracking_method.lower(), **self.tracker_params) for i in range(1, num_tanks + 1)}
                     tracked_detections = defaultdict(list)
                     for frame_idx in range(total_frames):
+                        self.log_message.emit(f"Tracking Frame: {frame_idx}/{total_frames}")
                         if not self.is_running: break
                         ret, frame = cap.read(); 
                         if not ret: break
