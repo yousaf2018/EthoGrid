@@ -57,6 +57,14 @@ class BatchProcessDialog(BaseDialog):
         self.strongsort_n_init = CustomSpinBox(value=3, minimum=1, maximum=20)
         reid_layout.addRow("Re-ID Model:", self.create_hbox(self.reid_model_edit, self.browse_reid_model_btn)); reid_layout.addRow("Max Distance (Cosine):", self.strongsort_max_dist); reid_layout.addRow("Max Age (frames):", self.strongsort_max_age); reid_layout.addRow("Confirmation Frames (n_init):", self.strongsort_n_init)
         
+        # --- NEW GUI ELEMENTS FOR DUPLICATE MERGING (IoU Threshold 0-1) ---
+        self.duplicate_merge_group = QtWidgets.QGroupBox("Pre-Tracking Duplicate Merge (IoU)")
+        duplicate_merge_layout = QtWidgets.QFormLayout(self.duplicate_merge_group)
+        self.iou_threshold_input = CustomDoubleSpinBox(value=0.99, singleStep=0.01, decimals=2, minimum=0.0, maximum=1.0)
+        self.iou_threshold_input.setToolTip("If two detections in the same tank/frame have IoU >= this value, they are merged by averaging coordinates.")
+        duplicate_merge_layout.addRow("IoU Threshold (0.0 to 1.0):", self.iou_threshold_input)
+        # --- END NEW GUI ELEMENTS ---
+        
         self.frame_sample_rate_spinbox = CustomSpinBox(toolTip="Use data from every Nth frame for image exports.", value=30, minimum=1, maximum=10000)
         self.time_gap_spinbox = CustomDoubleSpinBox(toolTip="Max time gap in seconds for trajectories.", value=1.0, minimum=0.1, maximum=99999.0, singleStep=0.1)
         self.save_video_checkbox = QtWidgets.QCheckBox("Save Annotated Video"); self.save_video_checkbox.setChecked(True); self.show_overlays_checkbox = QtWidgets.QCheckBox("Show Overlays (Legend/Timeline)"); self.show_overlays_checkbox.setChecked(True)
@@ -89,6 +97,7 @@ class BatchProcessDialog(BaseDialog):
         tracking_layout.addLayout(tracking_options_form)
         tracking_layout.addWidget(self.norfair_group)
         tracking_layout.addWidget(self.reid_group)
+        tracking_layout.addWidget(self.duplicate_merge_group) # ADDED MERGE GROUP
         form_layout.addWidget(tracking_group, 8, 0, 1, 3)
 
         img_export_group = QtWidgets.QGroupBox("Image Export Options"); img_export_layout = QtWidgets.QFormLayout(img_export_group)
@@ -123,6 +132,7 @@ class BatchProcessDialog(BaseDialog):
     def on_tracking_method_changed(self, method):
         self.norfair_group.setVisible(method == "Norfair")
         self.reid_group.setVisible(method in ["StrongSORT", "BoTSORT"])
+        self.duplicate_merge_group.setVisible(True) 
         self.max_animals_spinbox.setEnabled(method != "Confidence Filter")
         self.auto_stitch_checkbox.setEnabled(method != "Confidence Filter")
         
@@ -208,11 +218,13 @@ class BatchProcessDialog(BaseDialog):
         
         self.toggle_controls(False); self.log_text_edit.clear()
         
+        iou_thresh = self.iou_threshold_input.value()
+        
         tracker_params = {}
         if tracking_method == "Norfair":
             tracker_params = {
                 'distance_function': self.norfair_distance_fn_combo.currentText(),
-                'distance_threshold': self.norfair_dist_thresh.value(), # This value is passed as-is (user enters cm, worker converts)
+                'distance_threshold': self.norfair_dist_thresh.value(),
                 'hit_counter_max': self.norfair_hit_counter.value(),
                 'initialization_delay': self.norfair_init_delay.value(),
                 'past_detections_length': self.norfair_past_detections.value()
@@ -232,8 +244,10 @@ class BatchProcessDialog(BaseDialog):
             save_excel_track=self.save_excel_track_checkbox.isChecked(), 
             save_excel_tank=self.save_excel_tank_checkbox.isChecked(),
             save_trajectory_img=self.save_trajectory_img_checkbox.isChecked(), save_heatmap_img=self.save_heatmap_img_checkbox.isChecked(), 
-            time_gap_seconds=self.time_gap_spinbox.value(), draw_overlays=self.show_overlays_checkbox.isChecked()
+            time_gap_seconds=self.time_gap_spinbox.value(), draw_overlays=self.show_overlays_checkbox.isChecked(),
+            iou_threshold=iou_thresh # Passing IoU threshold (0-1)
         )
+        self.batch_worker.batch_processor = self.batch_worker 
         self.batch_thread = QThread(); self.batch_worker.moveToThread(self.batch_thread)
         self.batch_worker.overall_progress.connect(self.update_overall_progress); self.batch_worker.file_progress.connect(self.update_file_progress); self.batch_worker.log_message.connect(self.log_text_edit.append); self.batch_worker.finished.connect(self.on_processing_finished); self.batch_worker.time_updated.connect(self.update_time_labels); self.batch_worker.speed_updated.connect(self.update_speed_label); self.batch_thread.started.connect(self.batch_worker.run)
         self.batch_thread.start()
@@ -259,4 +273,4 @@ class BatchProcessDialog(BaseDialog):
     def closeEvent(self, event):
         if self.batch_thread and self.batch_thread.isRunning():
             self.cancel_processing(); self.batch_thread.quit(); self.batch_thread.wait()
-        event.accept()      
+        event.accept()
