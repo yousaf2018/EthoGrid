@@ -103,7 +103,6 @@ class BatchProcessor(QThread):
             for det in dets:
                 tank_num = det.get('tank_number')
                 if tank_num is not None:
-                    # Ensure bounding box coordinates exist for IoU calculation. 
                     half_w, half_h = 5, 5
                     det['x1'] = det.get('x1', det['cx'] - half_w if 'cx' in det else 0)
                     det['y1'] = det.get('y1', det['cy'] - half_h if 'cy' in det else 0)
@@ -449,7 +448,7 @@ class BatchProcessor(QThread):
                 
                 cap.release() # Release video capture handle
 
-                # ... (Export logic remains unchanged) ...
+                # ... (Export logic starts here - UNCHANGED) ...
                 if self.save_csv:
                     output_csv_path = os.path.join(self.output_dir, f"{base_name}_with_tanks.csv");
                     self.log_message.emit(f"Saving enriched CSV to: {os.path.basename(output_csv_path)}")
@@ -503,12 +502,15 @@ class BatchProcessor(QThread):
                     behavior_colors = {name: predefined_colors[i % len(predefined_colors)] for i, name in enumerate(all_behaviors)}
                     
                     tank_data_for_timeline = defaultdict(dict)
+                    
+                    timeline_segments = {} # Initialize here to prevent UnboundLocalError if draw_overlays is False
+                    
                     if self.draw_overlays:
                         for frame_idx_tl, dets in detections.items():
                             for det in dets:
                                 if det.get('tank_number') is not None: tank_data_for_timeline[int(det['tank_number'])][frame_idx_tl] = det.get("class_name", "")
                         
-                        timeline_segments = {};
+                        timeline_segments = {}; # Re-initialize inside 'if' block
                         for tank_id, frames in tank_data_for_timeline.items():
                             if not frames: continue
                             segments, sorted_frames = [], sorted(frames.keys()); start_frame, current_behavior = sorted_frames[0], frames[sorted_frames[0]]

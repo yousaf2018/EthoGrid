@@ -1,4 +1,4 @@
-# EthoGrid_App/widgets/batch_dialog.py
+# EthoGrid_App/widgets/batch_dialog.py (Retained from previous response)
 
 import os
 import csv
