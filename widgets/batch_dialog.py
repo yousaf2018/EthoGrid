@@ -27,7 +27,10 @@ class BatchProcessDialog(BaseDialog):
         self.output_dir_line_edit = QtWidgets.QLineEdit(); self.output_dir_line_edit.setPlaceholderText("Click 'Browse' to select an output folder")
         self.browse_settings_btn = QtWidgets.QPushButton("Browse..."); self.browse_output_btn = QtWidgets.QPushButton("Browse..."); self.browse_csv_dir_btn = QtWidgets.QPushButton("Browse...")
         
-        self.tracking_method_combo = QtWidgets.QComboBox(); self.tracking_method_combo.addItems(["Confidence Filter", "Norfair", "ByteTrack", "OCSORT", "BoTSORT", "StrongSORT"])
+        self.tracking_method_combo = QtWidgets.QComboBox(); 
+        # ADDED CUSTOM FORCE-N TO DROPDOWN
+        self.tracking_method_combo.addItems(["Custom Force-N", "Confidence Filter", "Norfair", "ByteTrack", "OCSORT", "BoTSORT", "StrongSORT"])
+        
         self.max_animals_spinbox = CustomSpinBox(toolTip="Max animals to track per tank.", value=1, minimum=1, maximum=1000)
         self.auto_stitch_checkbox = QtWidgets.QCheckBox("Auto-Stitch to Max Animals")
         self.auto_stitch_checkbox.setToolTip("Aggressively merge broken tracks to ensure only 'Max Animals' tracks exist per tank.")
@@ -57,13 +60,11 @@ class BatchProcessDialog(BaseDialog):
         self.strongsort_n_init = CustomSpinBox(value=3, minimum=1, maximum=20)
         reid_layout.addRow("Re-ID Model:", self.create_hbox(self.reid_model_edit, self.browse_reid_model_btn)); reid_layout.addRow("Max Distance (Cosine):", self.strongsort_max_dist); reid_layout.addRow("Max Age (frames):", self.strongsort_max_age); reid_layout.addRow("Confirmation Frames (n_init):", self.strongsort_n_init)
         
-        # --- NEW GUI ELEMENTS FOR DUPLICATE MERGING (IoU Threshold 0-1) ---
-        self.duplicate_merge_group = QtWidgets.QGroupBox("Pre-Tracking Duplicate Merge (IoU)")
+        self.duplicate_merge_group = QtWidgets.QGroupBox("Pre-Tracking Duplicate Merge (NMS)")
         duplicate_merge_layout = QtWidgets.QFormLayout(self.duplicate_merge_group)
-        self.iou_threshold_input = CustomDoubleSpinBox(value=0.99, singleStep=0.01, decimals=2, minimum=0.0, maximum=1.0)
-        self.iou_threshold_input.setToolTip("If two detections in the same tank/frame have IoU >= this value, they are merged by averaging coordinates.")
+        self.iou_threshold_input = CustomDoubleSpinBox(value=0.50, singleStep=0.05, decimals=2, minimum=0.0, maximum=1.0)
+        self.iou_threshold_input.setToolTip("If two model detections in the same tank overlap by >= this IoU, the lower confidence one is discarded.")
         duplicate_merge_layout.addRow("IoU Threshold (0.0 to 1.0):", self.iou_threshold_input)
-        # --- END NEW GUI ELEMENTS ---
         
         self.frame_sample_rate_spinbox = CustomSpinBox(toolTip="Use data from every Nth frame for image exports.", value=30, minimum=1, maximum=10000)
         self.time_gap_spinbox = CustomDoubleSpinBox(toolTip="Max time gap in seconds for trajectories.", value=1.0, minimum=0.1, maximum=99999.0, singleStep=0.1)
@@ -97,7 +98,7 @@ class BatchProcessDialog(BaseDialog):
         tracking_layout.addLayout(tracking_options_form)
         tracking_layout.addWidget(self.norfair_group)
         tracking_layout.addWidget(self.reid_group)
-        tracking_layout.addWidget(self.duplicate_merge_group) # ADDED MERGE GROUP
+        tracking_layout.addWidget(self.duplicate_merge_group) 
         form_layout.addWidget(tracking_group, 8, 0, 1, 3)
 
         img_export_group = QtWidgets.QGroupBox("Image Export Options"); img_export_layout = QtWidgets.QFormLayout(img_export_group)
@@ -134,7 +135,7 @@ class BatchProcessDialog(BaseDialog):
         self.reid_group.setVisible(method in ["StrongSORT", "BoTSORT"])
         self.duplicate_merge_group.setVisible(True) 
         self.max_animals_spinbox.setEnabled(method != "Confidence Filter")
-        self.auto_stitch_checkbox.setEnabled(method != "Confidence Filter")
+        self.auto_stitch_checkbox.setEnabled(method not in ["Confidence Filter", "Custom Force-N"]) # Disable auto-stitch for Force-N
         
     def on_save_video_changed(self, state=None):
         is_checked = self.save_video_checkbox.isChecked(); self.show_overlays_checkbox.setEnabled(is_checked); self.draw_polygons_checkbox.setEnabled(is_checked)
@@ -245,7 +246,7 @@ class BatchProcessDialog(BaseDialog):
             save_excel_tank=self.save_excel_tank_checkbox.isChecked(),
             save_trajectory_img=self.save_trajectory_img_checkbox.isChecked(), save_heatmap_img=self.save_heatmap_img_checkbox.isChecked(), 
             time_gap_seconds=self.time_gap_spinbox.value(), draw_overlays=self.show_overlays_checkbox.isChecked(),
-            iou_threshold=iou_thresh # Passing IoU threshold (0-1)
+            iou_threshold=iou_thresh 
         )
         self.batch_worker.batch_processor = self.batch_worker 
         self.batch_thread = QThread(); self.batch_worker.moveToThread(self.batch_thread)
