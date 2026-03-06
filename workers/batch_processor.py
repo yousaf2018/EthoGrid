@@ -29,7 +29,6 @@ class BatchProcessor(QThread):
     time_updated = pyqtSignal(str, str)
     speed_updated = pyqtSignal(float)
 
-    # ### THE FIX IS HERE: Correct argument list including draw_overlays ###
     def __init__(self, video_files, settings_file, output_dir, csv_dir, tracking_method, tracker_params, max_animals_per_tank, frame_sample_rate, auto_stitch, save_video, save_csv, save_centroid_csv, save_excel_track, save_excel_tank, save_trajectory_img, save_heatmap_img, time_gap_seconds, draw_overlays, iou_threshold, parent=None):
         super().__init__(parent)
         self.video_files = video_files; self.settings_file = settings_file; self.output_dir = output_dir; self.csv_dir = csv_dir
@@ -43,7 +42,7 @@ class BatchProcessor(QThread):
         self.save_trajectory_img = save_trajectory_img; self.save_heatmap_img = save_heatmap_img
         self.time_gap_seconds = time_gap_seconds;
         self.draw_overlays = draw_overlays;
-        self.iou_threshold = iou_threshold; # IoU threshold (0.0 to 1.0) used for merging
+        self.iou_threshold = iou_threshold; 
         self.is_running = True
 
     def stop(self):
@@ -79,7 +78,6 @@ class BatchProcessor(QThread):
         return params
 
     def _calculate_iou(self, boxA, boxB):
-        # box format: [x1, y1, x2, y2]
         xA = max(boxA[0], boxB[0])
         yA = max(boxA[1], boxB[1])
         xB = min(boxA[2], boxB[2])
@@ -113,7 +111,6 @@ class BatchProcessor(QThread):
             
             frame_output = []
             for tank_num, tank_dets in dets_by_tank.items():
-                
                 if len(tank_dets) == 1:
                     tank_dets[0]['tank_number'] = tank_num
                     frame_output.append(tank_dets[0])
@@ -134,64 +131,60 @@ class BatchProcessor(QThread):
                         
                         iou = self._calculate_iou(box_current, box_other)
                         
-                        if iou > self.iou_threshold: 
-                            self.log_message.emit(f"LOG: Frame {frame_idx}, Tank {tank_num}: Merging duplicate detection (Conf: {other['conf']:.3f}) into detection (Conf: {current_base['conf']:.3f}) due to IoU ({iou:.3f} > {self.iou_threshold:.3f}).")
+                        if iou >= self.iou_threshold: 
                             merged_group.append(other)
                             to_process.pop(i)
                             total_merged += 1
                         else:
                             i += 1
                     
-                    merged_det = current_base 
+                    merged_det = current_base.copy()
                     
-                    avg_cx = np.mean([d['cx'] for d in merged_group])
-                    avg_cy = np.mean([d['cy'] for d in merged_group])
-                    avg_x1 = np.mean([d['x1'] for d in merged_group])
-                    avg_y1 = np.mean([d['y1'] for d in merged_group])
-                    avg_x2 = np.mean([d['x2'] for d in merged_group])
-                    avg_y2 = np.mean([d['y2'] for d in merged_group])
-                    
-                    merged_det['cx'] = avg_cx
-                    merged_det['cy'] = avg_cy
-                    merged_det['x1'] = avg_x1
-                    merged_det['y1'] = avg_y1
-                    merged_det['x2'] = avg_x2
-                    merged_det['y2'] = avg_y2
-                    
+                    merged_det['cx'] = np.mean([d['cx'] for d in merged_group])
+                    merged_det['cy'] = np.mean([d['cy'] for d in merged_group])
+                    merged_det['x1'] = np.mean([d['x1'] for d in merged_group])
+                    merged_det['y1'] = np.mean([d['y1'] for d in merged_group])
+                    merged_det['x2'] = np.mean([d['x2'] for d in merged_group])
+                    merged_det['y2'] = np.mean([d['y2'] for d in merged_group])
                     merged_det['tank_number'] = tank_num
                     
                     frame_output.append(merged_det)
 
             merged_detections[frame_idx].extend(frame_output)
         
-        self.log_message.emit(f" > Pre-Tracking Merge: Merged {total_merged} highly overlapping detections (IoU > {self.iou_threshold}).")
+        self.log_message.emit(f" > Pre-Tracking Merge: Consolidated {total_merged} overlapping duplicate detections (IoU >= {self.iou_threshold}).")
         return merged_detections
 
-
     def _force_stitch_to_max(self, detections_dict):
-        self.log_message.emit(f" > Post-processing: Forcing Auto-Stitch to Max {self.max_animals_per_tank} Animals...")
+        self.log_message.emit(f" > Post-processing: Forcing ALL tracks to stitch into Max {self.max_animals_per_tank} Primaries (Zero Discard)...")
         all_rows = []
         for frame_idx, dets in detections_dict.items():
             for d in dets:
                 d['frame_idx'] = frame_idx; all_rows.append(d)
         if not all_rows: return detections_dict
+        
         df = pd.DataFrame(all_rows)
         if 'track_id' not in df.columns: return detections_dict
         if 'original_track_id' not in df.columns: df['original_track_id'] = df['track_id']
+        
         all_tanks = df['tank_number'].dropna().unique()
         for tank_num in all_tanks:
             tank_df = df[df['tank_number'] == tank_num]
             if tank_df.empty: continue
+            
             track_durations = tank_df.groupby('track_id')['frame_idx'].count().sort_values(ascending=False)
+            
+            # Top N longest tracks are Primaries. Everything else is a Ghost to be forced in.
             primary_ids = track_durations.head(self.max_animals_per_tank).index.tolist()
             ghost_ids = track_durations.iloc[self.max_animals_per_tank:].index.tolist()
             
+            if not primary_ids: continue # Safety check
+            
             if ghost_ids:
-                self.log_message.emit(f" - Tank {int(tank_num)}: Identified {len(ghost_ids)} ghost tracks to merge/discard.")
+                self.log_message.emit(f" - Tank {int(tank_num)}: Force-merging {len(ghost_ids)} ghost tracks into the {len(primary_ids)} primary tracks.")
                 track_meta = {}
                 for tid in primary_ids + ghost_ids:
                     t_data = tank_df[tank_df['track_id'] == tid]
-                    if t_data.empty: continue
                     track_meta[tid] = {
                         'start_frame': t_data['frame_idx'].min(),
                         'end_frame': t_data['frame_idx'].max(),
@@ -201,44 +194,70 @@ class BatchProcessor(QThread):
                     }
                 
                 for ghost_id in ghost_ids:
-                    if ghost_id not in track_meta: continue
-                    ghost = track_meta[ghost_id]; best_match = None; min_score = float('inf')
+                    ghost = track_meta[ghost_id]
+                    best_match = None
+                    min_score = float('inf')
+                    
+                    # Force match to the best available primary, even if overlapping
                     for prim_id in primary_ids:
-                        if prim_id not in track_meta: continue
                         prim = track_meta[prim_id]
-                        if not ghost['frames'].isdisjoint(prim['frames']): continue
-                        gap_time = 0; dist = float('inf')
+                        
+                        gap_time = 0
+                        dist = 0
+                        overlap_penalty = 0
+                        
+                        # Penalize overlap heavily to prefer empty slots, but don't forbid it
+                        if not ghost['frames'].isdisjoint(prim['frames']):
+                            overlap_penalty = 100000 
+                            
                         if ghost['start_frame'] > prim['end_frame']:
                             gap_time = ghost['start_frame'] - prim['end_frame']
                             dist = np.sqrt((ghost['start_pos'][0] - prim['end_pos'][0])**2 + (ghost['start_pos'][1] - prim['end_pos'][1])**2)
                         elif prim['start_frame'] > ghost['end_frame']:
                             gap_time = prim['start_frame'] - ghost['end_frame']
                             dist = np.sqrt((prim['start_pos'][0] - ghost['end_pos'][0])**2 + (ghost['end_pos'][1] - prim['end_pos'][1])**2)
-                        score = dist + (gap_time * 0.5)
-                        if score < min_score: min_score = score; best_match = prim_id
+                        else:
+                            # Overlapping completely, just measure centroid distance
+                            dist = np.sqrt((ghost['start_pos'][0] - prim['start_pos'][0])**2 + (ghost['start_pos'][1] - prim['start_pos'][1])**2)
+                            
+                        score = dist + (gap_time * 0.5) + overlap_penalty
                         
+                        if score < min_score:
+                            min_score = score
+                            best_match = prim_id
+                            
                     if best_match is not None:
-                        self.log_message.emit(f"LOG: Stitching Tank {int(tank_num)}: Track ID {ghost_id} merged into primary track {best_match}.")
+                        self.log_message.emit(f"LOG: Tank {int(tank_num)}: Ghost ID {ghost_id} FORCE-MERGED to Primary ID {best_match}.")
                         mask = (df['tank_number'] == tank_num) & (df['track_id'] == ghost_id)
                         df.loc[mask, 'track_id'] = int(best_match)
                         track_meta[best_match]['frames'].update(ghost['frames'])
+                        # Expand bounds of the primary track
                         track_meta[best_match]['start_frame'] = min(track_meta[best_match]['start_frame'], ghost['start_frame'])
                         track_meta[best_match]['end_frame'] = max(track_meta[best_match]['end_frame'], ghost['end_frame'])
-                    else:
-                        self.log_message.emit(f"LOG: Stitching Tank {int(tank_num)}: Track ID {ghost_id} (Ghost) permanently discarded as no primary track found.")
-                        mask = (df['tank_number'] == tank_num) & (df['track_id'] == ghost_id)
-                        df = df.drop(df[mask].index)
-                        
-                final_tank_indices = df[df['tank_number'] == tank_num].index
-                id_map = {old_id: new_id for new_id, old_id in enumerate(primary_ids, 1)}
-                df.loc[final_tank_indices, 'track_id'] = df.loc[final_tank_indices, 'track_id'].map(id_map)
+
+            # Normalize primary IDs to 1..N
+            final_tank_indices = df[df['tank_number'] == tank_num].index
+            id_map = {old_id: new_id for new_id, old_id in enumerate(primary_ids, 1)}
+            df.loc[final_tank_indices, 'track_id'] = df.loc[final_tank_indices, 'track_id'].map(id_map)
+            
+        # VERY IMPORTANT: Because we forcefully merged overlapping tracks, we must combine duplicate rows for the same Track ID in the same frame
+        # Otherwise, the system breaks during CSV export. We average them.
+        agg_funcs = {
+            'conf': 'max', 'x1': 'mean', 'y1': 'mean', 'x2': 'mean', 'y2': 'mean',
+            'cx': 'mean', 'cy': 'mean'
+        }
+        if 'class_name' in df.columns: agg_funcs['class_name'] = 'first'
+        if 'polygon' in df.columns: agg_funcs['polygon'] = 'first'
+        if 'original_track_id' in df.columns: agg_funcs['original_track_id'] = 'first'
+
+        df_merged = df.groupby(['frame_idx', 'tank_number', 'track_id'], as_index=False).agg(agg_funcs)
         
         new_detections = defaultdict(list)
-        for _, row in df.iterrows():
+        for _, row in df_merged.iterrows():
             d = row.to_dict();
-            if 'frame_idx' in d: # Do NOT pop frame_idx to ensure it stays available for export functions
-                f_idx = int(d['frame_idx'])
-                new_detections[f_idx].append(d)
+            f_idx = int(d['frame_idx'])
+            new_detections[f_idx].append(d)
+            
         return new_detections
 
     def run(self):
@@ -246,7 +265,7 @@ class BatchProcessor(QThread):
             with open(self.settings_file, 'r') as f:
                 settings_data = json.load(f)
                 grid_settings = settings_data['grid_settings']; transform_settings = settings_data['grid_transform']
-                self.conversion_rate = settings_data.get('conversion_rate', 1.0) # Store conversion rate instance variable
+                self.conversion_rate = settings_data.get('conversion_rate', 1.0)
         except Exception as e:
             self.log_message.emit(f"[ERROR] Failed to load settings file: {e}"); return
 
@@ -317,7 +336,7 @@ class BatchProcessor(QThread):
                         if tank_num is not None: det['tank_number'] = tank_num
                         valid_dets_in_frame.append(det)
                     
-                    # STEP 1: ASSIGN to tank, keeping ALL detections for now
+                    # ASSIGN to tank. NO PRUNING is done here so Tracker gets everything.
                     dets_by_tank = defaultdict(list)
                     for det in valid_dets_in_frame:
                         if det.get('tank_number') is not None:
@@ -325,41 +344,15 @@ class BatchProcessor(QThread):
                     
                     detections_after_tank_assignment[frame_idx] = [d for tank_dets in dets_by_tank.values() for d in tank_dets]
 
-
-                # STEP 2: Merge Duplicates (IoU > threshold) among the detections assigned to tanks
+                # Merge exact overlapping duplicates BEFORE passing to tracker.
                 self.log_message.emit("--- Starting Pre-Tracking Duplicate Merge ---")
                 raw_detections = self._merge_frame_duplicates_pre_tracking(detections_after_tank_assignment)
-                self.log_message.emit("--- Pre-Tracking Merge Complete ---")
                 
-                # STEP 3: Confidence Filtering (Limit to max_animals_per_tank PER TANK) 
-                final_pre_track_detections = defaultdict(list)
-                self.log_message.emit(f"--- Starting Pre-Tracking Confidence Filter (Limit to {self.max_animals_per_tank} per tank) ---")
-                
-                for frame_idx, dets in raw_detections.items():
-                    tank_groups = defaultdict(list)
-                    for det in dets:
-                        tank_groups[det.get('tank_number')].append(det)
-                    
-                    for tank_num, tank_dets in tank_groups.items():
-                        tank_dets.sort(key=lambda x: x.get('conf', 0.0), reverse=True)
-                        
-                        for i, det in enumerate(tank_dets):
-                            if i < self.max_animals_per_tank:
-                                final_pre_track_detections[frame_idx].append(det)
-                            else:
-                                # LOGGING PRUNED DETECTION (Row discarded based on confidence limit)
-                                log_info = f"Frame {frame_idx}, Tank {tank_num}: PRUNED (Pre-Track Limit) detection (ID: {det.get('track_id', 'N/A')}, Conf: {det.get('conf', 0):.3f})"
-                                self.log_message.emit(f"LOG: Pre-Track Filter: {log_info}")
-                                
-                raw_detections = final_pre_track_detections
-                self.log_message.emit("--- Pre-Tracking Filter Complete ---")
-
-
                 detections = {}
                 num_tanks = grid_settings['cols'] * grid_settings['rows']
 
                 if is_boxmot_tracker:
-                    self.log_message.emit(f"Applying {self.tracking_method} tracking...")
+                    self.log_message.emit(f"Applying {self.tracking_method} tracking to all detections...")
                     trackers = {i: create_tracker(self.tracking_method.lower(), **self.tracker_params) for i in range(1, num_tanks + 1)}
                     tracked_detections = defaultdict(list)
                     for frame_idx in range(total_frames):
@@ -413,42 +406,31 @@ class BatchProcessor(QThread):
                 else: # Confidence Filter (No tracking)
                     detections = raw_detections; self.log_message.emit("Using merged raw detections (no tracking).")
                 
-                # Apply auto-stitch if enabled (Handles merging tracks across frames post-tracking)
+                # Apply auto-stitch if enabled. This function guarantees it condenses ALL tracks into N IDs without discarding.
                 if self.auto_stitch:
                     detections = self._force_stitch_to_max(detections)
                 
-                # FINAL CLEANUP (Post-Stitch/Confidence Filter) - Re-apply max limit if necessary for output consistency
-                final_detections_filtered = defaultdict(list)
-                if self.tracking_method == "Confidence Filter" or self.auto_stitch:
-                    self.log_message.emit(f"--- Starting Final Post-Processing Limit (Max {self.max_animals_per_tank} per tank) ---")
+                # Only if NOT stitching and using Confidence Filter do we need to manually prune to max_animals_per_tank
+                # (because otherwise, the output files crash if there are 10 animals in tank 1).
+                elif self.tracking_method == "Confidence Filter":
+                    final_detections_filtered = defaultdict(list)
+                    self.log_message.emit(f"--- Applying simple confidence limit to max {self.max_animals_per_tank} ---")
                     for frame_idx, dets in detections.items():
                         tank_groups = defaultdict(list)
                         for det in dets:
                             tank_groups[det.get('tank_number')].append(det)
                         
                         for tank_num, tank_dets in tank_groups.items():
-                            if 'track_id' in tank_dets[0]:
-                                tank_dets.sort(key=lambda x: x.get('track_id', float('inf')))
-                            
-                            for i, det in enumerate(tank_dets):
-                                if i < self.max_animals_per_tank:
-                                    final_detections_filtered[frame_idx].append(det)
-                                else:
-                                    # LOGGING DISCARDED DETECTION/ROW
-                                    log_info = f"Frame {frame_idx}, Tank {tank_num}: DISCARDED ROW (ID: {det.get('track_id', 'N/A')}, Conf: {det.get('conf', 0):.3f}) post-processing."
-                                    self.log_message.emit(f"LOG: Final Filter: {log_info}")
-                                    
+                            tank_dets.sort(key=lambda x: x.get('conf', 0.0), reverse=True)
+                            final_detections_filtered[frame_idx].extend(tank_dets[:self.max_animals_per_tank])
                     detections = final_detections_filtered
-                    self.log_message.emit("--- Final Filter Complete ---")
                 
-                # Ensure headers are correct for export if tracking IDs were added
-                if self.save_csv:
-                    if 'track_id' not in csv_headers and (self.tracking_method != "Confidence Filter" or self.auto_stitch): csv_headers.append('track_id')
-                    if 'original_track_id' not in csv_headers and self.auto_stitch: csv_headers.append('original_track_id')
+                if 'track_id' not in csv_headers and (self.tracking_method != "Confidence Filter" or self.auto_stitch): csv_headers.append('track_id')
+                if 'original_track_id' not in csv_headers and self.auto_stitch: csv_headers.append('original_track_id')
                 
                 cap.release() # Release video capture handle
 
-                # ... (Export logic starts here - UNCHANGED) ...
+                # ... (Export logic remains unchanged) ...
                 if self.save_csv:
                     output_csv_path = os.path.join(self.output_dir, f"{base_name}_with_tanks.csv");
                     self.log_message.emit(f"Saving enriched CSV to: {os.path.basename(output_csv_path)}")
@@ -503,7 +485,7 @@ class BatchProcessor(QThread):
                     
                     tank_data_for_timeline = defaultdict(dict)
                     
-                    timeline_segments = {} # Initialize here to prevent UnboundLocalError if draw_overlays is False
+                    timeline_segments = {} # Initialize here to prevent UnboundLocalError
                     
                     if self.draw_overlays:
                         for frame_idx_tl, dets in detections.items():
